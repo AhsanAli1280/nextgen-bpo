@@ -20,12 +20,12 @@ export function Footer() {
             </Link>
             <p className="text-white/70 text-sm mb-6">{BRAND.tagline}</p>
             <div className="flex space-x-2">
-              <a href="/#contact" className="inline-flex items-center justify-center w-11 h-11 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors" aria-label="Contact us via LinkedIn">
+              <Link href="/#contact" className="inline-flex items-center justify-center w-11 h-11 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors" aria-label="Contact us via LinkedIn">
                 <Linkedin className="w-5 h-5" aria-hidden="true" />
-              </a>
-              <a href="/#contact" className="inline-flex items-center justify-center w-11 h-11 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors" aria-label="Contact us via Twitter">
+              </Link>
+              <Link href="/#contact" className="inline-flex items-center justify-center w-11 h-11 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors" aria-label="Contact us via Twitter">
                 <Twitter className="w-5 h-5" aria-hidden="true" />
-              </a>
+              </Link>
             </div>
           </div>
 
