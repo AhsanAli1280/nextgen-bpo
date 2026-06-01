@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Star } from 'lucide-react';
+import { Quote } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { fadeInUp } from '@/lib/animations';
 import { Testimonial } from '@/types';
@@ -17,7 +17,7 @@ export function TestimonialCard({ testimonial, className }: TestimonialCardProps
   return (
     <motion.div
       className={cn(
-        'bg-brand-light rounded-2xl p-6 border border-brand-border/60 hover:border-brand-green/30 transition-colors',
+        'bg-brand-light rounded-2xl p-6 border border-brand-border/60 hover:border-brand-green/30 hover:shadow-md transition-all duration-300',
         className
       )}
       initial="initial"
@@ -25,10 +25,8 @@ export function TestimonialCard({ testimonial, className }: TestimonialCardProps
       viewport={{ once: true }}
       variants={fadeInUp}
     >
-      <div className="flex text-yellow-400 mb-4" aria-label="5 out of 5 stars">
-        {[...Array(5)].map((_, i) => (
-          <Star key={i} className="w-5 h-5 fill-current" aria-hidden="true" />
-        ))}
+      <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white text-brand-green mb-4">
+        <Quote className="w-5 h-5" aria-hidden="true" />
       </div>
       
       <blockquote className="text-brand-dark text-sm leading-relaxed mb-6">

@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Phone } from 'lucide-react';
+import { X, Phone, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { NAV_ITEMS } from '@/lib/data/navigation';
 import { CONTACT } from '@/lib/constants';
@@ -20,6 +21,7 @@ function smoothScrollTo(id: string) {
 export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const [servicesOpen, setServicesOpen] = useState(false);
 
   useEffect(() => {
     document.body.style.overflow = isOpen ? 'hidden' : '';
@@ -28,6 +30,7 @@ export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
 
   useEffect(() => {
     if (isOpen) setTimeout(() => closeButtonRef.current?.focus(), 50);
+    if (!isOpen) setServicesOpen(false);
   }, [isOpen]);
 
   useEffect(() => {
@@ -93,16 +96,54 @@ export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
             </div>
 
             <nav aria-label="Main navigation" className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
-              {NAV_ITEMS.map((item) => (
-                <a
-                  key={item.href}
-                  href={item.href}
-                  onClick={(e) => handleNavClick(e, item.href)}
-                  className="flex items-center min-h-[48px] px-4 py-3 text-base font-medium text-brand-gray hover:text-brand-dark hover:bg-brand-light rounded-xl transition-colors"
-                >
-                  {item.label}
-                </a>
-              ))}
+              {NAV_ITEMS.map((item) =>
+                item.children ? (
+                  <div key={item.href}>
+                    <button
+                      className="flex items-center justify-between w-full min-h-[48px] px-4 py-3 text-base font-medium text-brand-gray hover:text-brand-dark hover:bg-brand-light rounded-xl transition-colors"
+                      onClick={() => setServicesOpen((v) => !v)}
+                      aria-expanded={servicesOpen}
+                    >
+                      {item.label}
+                      <ChevronDown
+                        className={`w-4 h-4 transition-transform duration-200 ${servicesOpen ? 'rotate-180' : ''}`}
+                        aria-hidden="true"
+                      />
+                    </button>
+                    <AnimatePresence>
+                      {servicesOpen && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="overflow-hidden pl-4"
+                        >
+                          {item.children.map((child) => (
+                            <Link
+                              key={child.href}
+                              href={child.href}
+                              onClick={onClose}
+                              className="flex items-center min-h-[44px] px-4 py-2 text-sm text-brand-gray hover:text-brand-dark hover:bg-brand-light rounded-xl transition-colors"
+                            >
+                              {child.label}
+                            </Link>
+                          ))}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                ) : (
+                  <a
+                    key={item.href}
+                    href={item.href}
+                    onClick={(e) => handleNavClick(e, item.href)}
+                    className="flex items-center min-h-[48px] px-4 py-3 text-base font-medium text-brand-gray hover:text-brand-dark hover:bg-brand-light rounded-xl transition-colors"
+                  >
+                    {item.label}
+                  </a>
+                )
+              )}
               <a
                 href="#contact"
                 onClick={(e) => handleNavClick(e, '#contact')}

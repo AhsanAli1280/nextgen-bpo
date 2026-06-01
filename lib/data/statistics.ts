@@ -1,34 +1,22 @@
-import { Statistic } from '@/types';
-
-export const STATISTICS: Statistic[] = [
+export const TRUST_STATEMENTS = [
   {
-    id: 'cost-reduction',
-    value: 60,
-    suffix: '%',
-    label: 'Average Cost Reduction',
-    sublabel: 'vs. in-house hiring',
+    id: 'ca-led',
+    label: 'Qualified professional team',
+    sublabel: 'Accounting, tax, payroll and reporting work handled by experienced finance professionals.',
   },
   {
-    id: 'accuracy',
-    value: 99.7,
-    suffix: '%',
-    label: 'Delivery Accuracy',
-    sublabel: 'QA-verified output',
-    decimals: 1,
+    id: 'senior-review',
+    label: 'Senior review on every job',
+    sublabel: 'A reviewer checks the work before it leaves our team. You get the output, not the draft.',
   },
   {
-    id: 'clients',
-    value: 200,
-    suffix: '+',
-    label: 'Global Clients',
-    sublabel: 'across 15 countries',
+    id: 'firm-support',
+    label: 'Built for firms and growing businesses',
+    sublabel: 'CPA firms, audit practices, tax firms, SMEs and international clients all work with us.',
   },
   {
-    id: 'satisfaction',
-    value: 4.9,
-    suffix: '/5',
-    label: 'Client Satisfaction',
-    sublabel: 'average rating',
-    decimals: 1,
+    id: 'confidentiality',
+    label: 'Confidential by design',
+    sublabel: 'NDA-backed, access-controlled, and documented, for work involving sensitive financial data.',
   },
-];
+] as const;

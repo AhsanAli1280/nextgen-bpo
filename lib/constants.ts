@@ -1,6 +1,7 @@
 export const BRAND = {
-  name: 'NEXTGEN BPO',
-  tagline: 'Clarity In Every Connection',
+  name: 'NextGen BPO Solutions',
+  shortName: 'NextGen BPO',
+  tagline: 'CA-led accounting, taxation and back-office outsourcing',
   colors: {
     green: '#39B54A',
     blue: '#3F6FB6',
@@ -10,11 +11,34 @@ export const BRAND = {
 export const CONTACT = {
   phone: '+92-328-4000-398',
   email: 'info@next-genbpo.com',
-  location: 'Lahore, Pakistan • Serving USA & UK',
+  location: 'Pakistan',
 } as const;
 
 export const SEO = {
-  title: 'NEXTGEN BPO Solutions | Clarity In Every Connection',
-  description: 'Enterprise-grade BPO for accounting firms, SMEs & finance teams. US taxation, bookkeeping, payroll & financial modeling with 99.7% accuracy.',
-  keywords: ['BPO', 'accounting outsourcing', 'US taxation', 'bookkeeping', 'payroll services', 'financial modeling'],
+  title: 'NextGen BPO Solutions | CA-Led Accounting Outsourcing Services',
+  description:
+    'CA-led accounting, taxation and back-office outsourcing services for CPA firms, audit firms, tax practices, and growing businesses worldwide.',
+  keywords: [
+    'accounting outsourcing',
+    'bookkeeping services',
+    'CPA outsourcing',
+    'US tax preparation support',
+    'Pakistan taxation services',
+    'offshore accounting services',
+    'back office support services',
+    'audit firm support',
+    'payroll processing services',
+    'corporate advisory',
+  ],
 } as const;
+
+export const SERVICE_PAGE_SLUGS = [
+  'accounting-outsourcing',
+  'cpa-outsourcing',
+  'us-tax-preparation',
+  'pakistan-taxation',
+  'bookkeeping',
+  'payroll',
+] as const;
+
+export type ServicePageSlug = (typeof SERVICE_PAGE_SLUGS)[number];

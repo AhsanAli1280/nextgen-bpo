@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion, useScroll } from 'framer-motion';
-import { Phone } from 'lucide-react';
+import { Phone, ChevronDown } from 'lucide-react';
 import { Container } from '@/components/ui/container';
 import { Button } from '@/components/ui/button';
 import { MobileMenu } from '@/components/layout/mobile-menu';
@@ -21,6 +21,59 @@ function handleHashClick(e: React.MouseEvent<HTMLAnchorElement>, href: string) {
     e.preventDefault();
     smoothScrollTo(href.slice(1));
   }
+}
+
+function DropdownNavItem({ item }: { item: (typeof NAV_ITEMS)[number] }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      className="relative"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
+      <button
+        className="flex items-center gap-1 px-4 py-2 text-sm font-medium text-brand-gray hover:text-brand-dark transition-colors relative group"
+        aria-haspopup="true"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        {item.label}
+        <ChevronDown
+          className={`w-3.5 h-3.5 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+          aria-hidden="true"
+        />
+        <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-brand-green transition-all group-hover:w-full" />
+      </button>
+
+      {open && item.children && (
+        <div className="absolute left-0 top-full pt-1 z-50 w-64">
+          <div className="bg-white rounded-xl border border-brand-border/60 shadow-lg py-2 overflow-hidden">
+            {item.children.map((child) => (
+              <Link
+                key={child.href}
+                href={child.href}
+                onClick={() => setOpen(false)}
+                className="block px-4 py-2.5 text-sm text-brand-gray hover:text-brand-dark hover:bg-brand-light transition-colors"
+              >
+                {child.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function Navbar() {
@@ -61,22 +114,24 @@ export function Navbar() {
               </motion.div>
             </Link>
 
-            {/* Desktop nav */}
             <div className="hidden lg:flex items-center space-x-1">
-              {NAV_ITEMS.map((item) => (
-                <a
-                  key={item.href}
-                  href={item.href}
-                  onClick={(e) => handleHashClick(e, item.href)}
-                  className="px-4 py-2 text-sm font-medium text-brand-gray hover:text-brand-dark transition-colors relative group"
-                >
-                  {item.label}
-                  <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-brand-green transition-all group-hover:w-full" />
-                </a>
-              ))}
+              {NAV_ITEMS.map((item) =>
+                item.children ? (
+                  <DropdownNavItem key={item.href} item={item} />
+                ) : (
+                  <a
+                    key={item.href}
+                    href={item.href}
+                    onClick={(e) => handleHashClick(e, item.href)}
+                    className="px-4 py-2 text-sm font-medium text-brand-gray hover:text-brand-dark transition-colors relative group"
+                  >
+                    {item.label}
+                    <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-brand-green transition-all group-hover:w-full" />
+                  </a>
+                )
+              )}
             </div>
 
-            {/* Desktop CTA */}
             <div className="hidden lg:flex items-center space-x-4">
               <a
                 href={`tel:${CONTACT.phone.replace(/[^+\d]/g, '')}`}
@@ -92,7 +147,6 @@ export function Navbar() {
               </Button>
             </div>
 
-            {/* Mobile hamburger — p-3 gives 48px touch target (12*2 + 24px icon) */}
             <button
               className="lg:hidden p-3 rounded-lg text-brand-gray hover:text-brand-dark hover:bg-brand-light transition-colors"
               onClick={() => setMobileMenuOpen(true)}

@@ -1,19 +1,22 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Calendar, Users, Rocket, TrendingUp, LucideIcon } from 'lucide-react';
+import { Calendar, Users, FileCheck2, TrendingUp, LucideIcon } from 'lucide-react';
 import { Container } from '@/components/ui/container';
 import { SectionHeading } from '@/components/ui/section-heading';
 import { Button } from '@/components/ui/button';
 import { PROCESS_STEPS } from '@/lib/data/process';
 
-const ICON_MAP: Record<string, LucideIcon> = { Calendar, Users, Rocket, TrendingUp };
+const ICON_MAP: Record<string, LucideIcon> = { Calendar, Users, FileCheck2, TrendingUp };
 
 export function ProcessWorkflow() {
   return (
     <section id="process" className="py-20 lg:py-28 bg-white">
       <Container>
-        <SectionHeading title="Our Proven Engagement Framework" subtitle="A transparent, collaborative process designed for seamless integration and measurable outcomes—starting in days, not months." />
+        <SectionHeading
+          title="How an engagement works"
+          subtitle="A straightforward process for getting accounting, tax, payroll or back-office work done properly. Every engagement has a clear scope, a consistent team, and senior review at every step."
+        />
         <div className="hidden lg:block relative">
           <div className="absolute top-8 left-0 right-0 h-0.5 bg-gradient-to-r from-brand-green via-brand-blue to-brand-green" />
           <div className="grid grid-cols-4 gap-8 relative">
@@ -51,7 +54,7 @@ export function ProcessWorkflow() {
           })}
         </div>
         <motion.div className="text-center mt-12" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.4 }}>
-          <Button asChild><a href="#contact">Start Your Pilot Project <Rocket className="ml-2 -mr-1 w-4 h-4" aria-hidden="true" /></a></Button>
+          <Button asChild><a href="#contact">Request a Consultation <FileCheck2 className="ml-2 -mr-1 w-4 h-4" aria-hidden="true" /></a></Button>
         </motion.div>
       </Container>
     </section>

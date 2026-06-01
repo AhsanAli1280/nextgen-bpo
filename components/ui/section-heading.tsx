@@ -20,7 +20,7 @@ export function SectionHeading({ title, subtitle, align = 'center', className }:
 
   return (
     <motion.div 
-      className={cn('max-w-3xl mx-auto mb-16 flex flex-col', alignments[align], className)}
+      className={cn('max-w-3xl mx-auto mb-12 flex flex-col', alignments[align], className)}
       initial="initial"
       whileInView="animate"
       viewport={{ once: true, amount: 0.1 }}

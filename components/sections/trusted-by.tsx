@@ -1,27 +1,76 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { ArrowRight } from 'lucide-react';
+import { CheckCircle, ArrowRight } from 'lucide-react';
 import { Container } from '@/components/ui/container';
-import { SectionHeading } from '@/components/ui/section-heading';
 import { fadeInUp, staggerContainer } from '@/lib/animations';
+import { TRUST_PILLS, PROOF_POINTS } from '@/lib/data/proof';
 
 export function TrustedBy() {
-  const logos = ['CLIENT', 'PARTNER', 'FIRM', 'GROUP', 'CORP', 'VENTURES'];
-  
   return (
-    <section className="py-16 bg-brand-light border-y border-brand-border/60">
+    <section id="trust" className="py-16 lg:py-20 bg-brand-light border-y border-brand-border/60">
       <Container>
-        <SectionHeading title="Trusted by Accounting Leaders Worldwide" subtitle="From boutique CPA firms to enterprise finance teams, we deliver precision at scale." />
-        <motion.div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 items-center justify-items-center" variants={staggerContainer} initial="initial" whileInView="animate" viewport={{ once: true }}>
-          {logos.map((logo, index) => (
-            <motion.div key={logo} className="group flex items-center justify-center p-4 rounded-xl hover:bg-white hover:shadow-md transition-all duration-200 border border-transparent hover:border-brand-border/60 w-full" custom={index} variants={fadeInUp} whileHover={{ scale: 1.05 }}>
-              <div className="h-8 flex items-center"><div className={`h-6 w-auto text-brand-gray opacity-60 group-hover:opacity-100 transition-all flex items-center justify-center px-3 py-1 bg-slate-100 rounded text-xs font-bold`}>{logo}</div></div>
+        <motion.div
+          className="text-center mb-10"
+          initial={{ opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+        >
+          <p className="text-xs font-semibold uppercase tracking-widest text-brand-gray mb-4">
+            How we deliver
+          </p>
+          <div className="flex flex-wrap justify-center gap-2.5">
+            {TRUST_PILLS.map((pill) => (
+              <span
+                key={pill}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-brand-border/60 text-sm font-medium text-brand-dark shadow-sm"
+              >
+                <span className="w-2 h-2 rounded-full bg-brand-green flex-shrink-0" aria-hidden="true" />
+                {pill}
+              </span>
+            ))}
+          </div>
+        </motion.div>
+
+        <motion.div
+          className="grid md:grid-cols-3 gap-6"
+          variants={staggerContainer}
+          initial="initial"
+          whileInView="animate"
+          viewport={{ once: true }}
+        >
+          {PROOF_POINTS.map((point) => (
+            <motion.div
+              key={point.label}
+              className="bg-white rounded-2xl border border-brand-border/60 p-6 shadow-sm flex items-start gap-4 hover:shadow-md transition-all duration-300"
+              variants={fadeInUp}
+            >
+              <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-brand-green/10 flex items-center justify-center">
+                <CheckCircle className="w-5 h-5 text-brand-green" aria-hidden="true" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-brand-dark mb-1">{point.label}</p>
+                <p className="text-xs text-brand-gray leading-relaxed">{point.detail}</p>
+              </div>
             </motion.div>
           ))}
         </motion.div>
-        <motion.div className="text-center mt-10" initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ delay: 0.5 }}>
-          <a href="#contact" className="inline-flex items-center text-sm font-medium text-brand-blue hover:text-brand-dark transition-colors">Join our network of successful partners <ArrowRight className="ml-1.5 w-4 h-4" aria-hidden="true" /></a>
+
+        <motion.div
+          className="text-center mt-10"
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ delay: 0.3 }}
+        >
+          <a
+            href="#contact"
+            className="inline-flex items-center text-sm font-medium text-brand-blue hover:text-brand-dark transition-colors"
+          >
+            Talk to us about what you need
+            <ArrowRight className="ml-1.5 w-4 h-4" aria-hidden="true" />
+          </a>
         </motion.div>
       </Container>
     </section>

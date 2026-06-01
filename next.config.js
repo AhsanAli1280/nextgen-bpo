@@ -8,6 +8,16 @@ const nextConfig = {
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days
   },
+  // Redirects from old service slugs to new canonical slugs
+  async redirects() {
+    return [
+      { source: '/bookkeeping', destination: '/bookkeeping-services', permanent: true },
+      { source: '/payroll', destination: '/payroll-processing-services', permanent: true },
+      { source: '/cpa-outsourcing', destination: '/cpa-firm-support', permanent: true },
+      { source: '/us-tax-preparation', destination: '/us-tax-preparation-support', permanent: true },
+      { source: '/pakistan-taxation', destination: '/pakistan-taxation-services', permanent: true },
+    ];
+  },
   // Security & SEO headers
   async headers() {
     return [

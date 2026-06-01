@@ -7,6 +7,7 @@ import { IndustryExpertise } from '@/components/sections/industry-expertise';
 import { Statistics } from '@/components/sections/statistics';
 import { Testimonials } from '@/components/sections/testimonials';
 import { FAQ } from '@/components/sections/faq';
+import { Leadership } from '@/components/sections/leadership';
 import { CTABanner } from '@/components/sections/cta-banner';
 
 export default function HomePage() {
@@ -21,6 +22,7 @@ export default function HomePage() {
       <Statistics />
       <Testimonials />
       <FAQ />
+      <Leadership />
       <CTABanner />
     </>
   );

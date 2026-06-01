@@ -4,6 +4,7 @@ export interface Service {
   description: string;
   icon: string;
   gradient: 'green' | 'blue';
+  href?: string;
 }
 
 export interface Industry {
@@ -43,6 +44,7 @@ export interface Statistic {
 export interface NavItem {
   label: string;
   href: string;
+  children?: { label: string; href: string }[];
 }
 
 export interface ProcessStep {
@@ -50,4 +52,14 @@ export interface ProcessStep {
   title: string;
   description: string;
   icon: string;
+}
+
+export interface ProofPoint {
+  label: string;
+  detail: string;
+}
+
+export interface PilotScopeItem {
+  title: string;
+  description: string;
 }
