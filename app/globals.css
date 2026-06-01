@@ -99,9 +99,8 @@ html {
   @apply outline outline-2 outline-brand-green outline-offset-2;
 }
 
-/* ── Mobile touch target compliance ──────────────────────────────────────────
+/* Mobile touch target compliance
    Google / WCAG 2.5.5 requires interactive elements to have a minimum
-   44×44px clickable area on touch devices. This rule ensures all interactive
+   44x44px clickable area on touch devices. This rule ensures all interactive
    elements on mobile never fall below that threshold without overriding
    desktop padding/layout.
-   ─────────────────────────────────────────────────────────────────
