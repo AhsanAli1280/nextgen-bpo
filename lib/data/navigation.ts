@@ -1,10 +1,12 @@
 import { NavItem } from '@/types';
 
+// Homepage section links use the '/#section' form so they resolve from any
+// route (e.g. /wht-calculator), not just the homepage.
 export const NAV_ITEMS: NavItem[] = [
-  { label: 'About', href: '#about' },
+  { label: 'About', href: '/#about' },
   {
     label: 'Services',
-    href: '#services',
+    href: '/#services',
     children: [
       { label: 'Accounting Outsourcing', href: '/accounting-outsourcing' },
       { label: 'Bookkeeping Services', href: '/bookkeeping-services' },
@@ -18,9 +20,9 @@ export const NAV_ITEMS: NavItem[] = [
       { label: 'Corporate Advisory', href: '/corporate-advisory-services' },
     ],
   },
-  { label: 'Industries', href: '#industries' },
-  { label: 'Process', href: '#process' },
-  { label: 'Our Team', href: '#our-team' },
+  { label: 'Industries', href: '/#industries' },
+  { label: 'Process', href: '/#process' },
+  { label: 'Our Team', href: '/#our-team' },
   { label: 'WHT Calculator', href: '/wht-calculator' },
 ];
 

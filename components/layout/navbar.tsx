@@ -16,10 +16,13 @@ function smoothScrollTo(id: string) {
   if (el) el.scrollIntoView({ behavior: 'smooth' });
 }
 
+// '/#section' links resolve from any route. When already on the homepage,
+// intercept and smooth-scroll instead of triggering a navigation; from any
+// other route, let Next.js navigate to '/' and the browser jump to the anchor.
 function handleHashClick(e: React.MouseEvent<HTMLAnchorElement>, href: string) {
-  if (href.startsWith('#')) {
+  if (href.startsWith('/#') && window.location.pathname === '/') {
     e.preventDefault();
-    smoothScrollTo(href.slice(1));
+    smoothScrollTo(href.slice(2));
   }
 }
 
@@ -119,7 +122,7 @@ export function Navbar() {
                 item.children ? (
                   <DropdownNavItem key={item.href} item={item} />
                 ) : (
-                  <a
+                  <Link
                     key={item.href}
                     href={item.href}
                     onClick={(e) => handleHashClick(e, item.href)}
@@ -127,7 +130,7 @@ export function Navbar() {
                   >
                     {item.label}
                     <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-brand-green transition-all group-hover:w-full" />
-                  </a>
+                  </Link>
                 )
               )}
             </div>
@@ -141,9 +144,9 @@ export function Navbar() {
                 {CONTACT.phone}
               </a>
               <Button asChild>
-                <a href="#contact" onClick={(e) => handleHashClick(e, '#contact')}>
+                <Link href="/#contact" onClick={(e) => handleHashClick(e, '/#contact')}>
                   Request Consultation
-                </a>
+                </Link>
               </Button>
             </div>
 

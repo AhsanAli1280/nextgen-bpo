@@ -54,11 +54,14 @@ export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
+  // '/#section' links resolve from any route. On the homepage, intercept and
+  // smooth-scroll after the menu closes; elsewhere, let Next.js navigate to '/'
+  // and the browser jump to the anchor.
   function handleNavClick(e: React.MouseEvent<HTMLAnchorElement>, href: string) {
-    if (href.startsWith('#')) {
+    if (href.startsWith('/#') && window.location.pathname === '/') {
       e.preventDefault();
       onClose();
-      setTimeout(() => smoothScrollTo(href.slice(1)), 50);
+      setTimeout(() => smoothScrollTo(href.slice(2)), 50);
     } else {
       onClose();
     }
@@ -134,23 +137,23 @@ export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
                     </AnimatePresence>
                   </div>
                 ) : (
-                  <a
+                  <Link
                     key={item.href}
                     href={item.href}
                     onClick={(e) => handleNavClick(e, item.href)}
                     className="flex items-center min-h-[48px] px-4 py-3 text-base font-medium text-brand-gray hover:text-brand-dark hover:bg-brand-light rounded-xl transition-colors"
                   >
                     {item.label}
-                  </a>
+                  </Link>
                 )
               )}
-              <a
-                href="#contact"
-                onClick={(e) => handleNavClick(e, '#contact')}
+              <Link
+                href="/#contact"
+                onClick={(e) => handleNavClick(e, '/#contact')}
                 className="flex items-center min-h-[48px] px-4 py-3 text-base font-medium text-brand-gray hover:text-brand-dark hover:bg-brand-light rounded-xl transition-colors"
               >
                 Contact
-              </a>
+              </Link>
             </nav>
 
             <div className="px-4 pb-6 pt-4 border-t border-brand-border/60 space-y-3">
@@ -163,9 +166,9 @@ export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
                 {CONTACT.phone}
               </a>
               <Button asChild className="w-full">
-                <a href="#contact" onClick={(e) => handleNavClick(e, '#contact')}>
+                <Link href="/#contact" onClick={(e) => handleNavClick(e, '/#contact')}>
                   Request Consultation
-                </a>
+                </Link>
               </Button>
             </div>
           </motion.div>
