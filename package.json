@@ -7,10 +7,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "ts-node --project tsconfig.test.json lib/wht-engine/tests/wht.test.ts"
   },
   "dependencies": {
     "clsx": "^2.1.1",
+    "decimal.js": "^10.6.0",
     "framer-motion": "^11.0.8",
     "lucide-react": "^0.344.0",
     "next": "^15.5.18",
@@ -28,6 +30,7 @@
     "eslint-config-next": "^15.5.18",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.1",
+    "ts-node": "^10.9.2",
     "typescript": "5.9.3"
   }
 }

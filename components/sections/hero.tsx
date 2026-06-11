@@ -1,7 +1,8 @@
 'use client';
 
+import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ArrowRight, CheckCircle, FileCheck2, ShieldCheck, Users } from 'lucide-react';
+import { ArrowRight, Calculator, CheckCircle, FileCheck2, ShieldCheck, Users } from 'lucide-react';
 import { Container } from '@/components/ui/container';
 import { Button } from '@/components/ui/button';
 import { fadeInUp, staggerContainer } from '@/lib/animations';
@@ -43,6 +44,16 @@ export function Hero() {
             </motion.div>
             <motion.p className="text-xs text-brand-gray" variants={fadeInUp}>
               Confidential. Clear scope. Reviewed delivery.
+            </motion.p>
+            <motion.p variants={fadeInUp}>
+              <Link
+                href="/wht-calculator"
+                className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-green hover:text-brand-dark transition-colors"
+              >
+                <Calculator className="w-4 h-4" aria-hidden="true" />
+                Try our free Pakistan Withholding Tax Calculator
+                <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
+              </Link>
             </motion.p>
           </motion.div>
 

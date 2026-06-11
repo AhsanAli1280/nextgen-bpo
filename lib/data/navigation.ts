@@ -1,6 +1,7 @@
 import { NavItem } from '@/types';
 
 export const NAV_ITEMS: NavItem[] = [
+  { label: 'About', href: '#about' },
   {
     label: 'Services',
     href: '#services',
@@ -17,10 +18,10 @@ export const NAV_ITEMS: NavItem[] = [
       { label: 'Corporate Advisory', href: '/corporate-advisory-services' },
     ],
   },
-  { label: 'About', href: '#about' },
-  { label: 'Process', href: '#process' },
   { label: 'Industries', href: '#industries' },
+  { label: 'Process', href: '#process' },
   { label: 'Our Team', href: '#our-team' },
+  { label: 'WHT Calculator', href: '/wht-calculator' },
 ];
 
 export const FOOTER_LINKS = {
@@ -44,6 +45,7 @@ export const FOOTER_LINKS = {
     { label: 'Contact', href: '/#contact' },
   ],
   resources: [
+    { label: 'WHT Calculator', href: '/wht-calculator' },
     { label: 'Confidentiality', href: '/#trust' },
     { label: 'Review Process', href: '/#process' },
     { label: 'CPA Firm Support', href: '/cpa-firm-support' },

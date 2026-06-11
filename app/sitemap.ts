@@ -31,5 +31,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 1,
     },
     ...servicePages,
+    {
+      url: `${BASE_URL}/wht-calculator`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.8,
+    },
   ];
 }
