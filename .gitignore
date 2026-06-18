@@ -23,3 +23,6 @@ pnpm-debug.log*
 node_modules/
 .next/
 .claude/
+node_modules/
+.next/
+.claude/
