@@ -17,6 +17,7 @@ import { taskGenerationService } from './task-generation-service'
 import { taskAssignmentEngine } from './task-assignment-engine'
 import type {
   AuditEventToCreate,
+  FilingInput,
   PhaseAdvanceResult,
   TaskRow,
   WorkflowDbAdapter,
@@ -446,12 +447,23 @@ export class WorkflowInstanceService {
 
   /**
    * Mark workflow as completed.
+   *
+   * Implements the frozen completion sequence (DATABASE_ARCHITECTURE_FINAL §17,
+   * PRODUCT_REQUIREMENTS §3.4):
+   *
+   *   Workflow Completion → Filing Attempt Recorded → Audit Trail Written → Workflow Status Updated
+   *
    * Guards: all hard-prerequisite tasks in current phase must be 'completed'.
-   * Sets obligation.status = 'filed' when filingAttemptId provided.
+   * When `filing` is provided and the obligation exists, a `filing_attempts` row
+   * is recorded (append-only, attempt_number auto-derived). The obligation is set
+   * to 'filed' only when the recorded filing outcome is 'accepted'.
+   *
+   * Backwards note: callers that previously passed a bare filingAttemptId now pass
+   * a FilingInput describing the attempt to record.
    */
   async completeWorkflow(
     workflowInstanceId: string,
-    filingAttemptId:    string | null,
+    filing:             FilingInput | null,
     actorUserId:        string,
     db:                 WorkflowDbAdapter
   ): Promise<void> {
@@ -473,6 +485,46 @@ export class WorkflowInstanceService {
 
     const now = new Date()
 
+    // ── 1. Filing Attempt Recorded (frozen §17) ───────────────────────────────
+    let filingAttemptId: string | null = null
+    let filingOutcome:   string | null = null
+    if (filing && workflow.obligation_id) {
+      const outcome = filing.outcome ?? 'accepted'
+      const attempt = await db.createFilingAttempt({
+        obligation_id:        workflow.obligation_id,
+        workflow_instance_id: workflowInstanceId,
+        filing_channel:       filing.filing_channel,
+        reference_number:     filing.reference_number ?? null,
+        outcome,
+        outcome_reason:       filing.outcome_reason ?? null,
+        filed_by_user_id:     actorUserId,
+      })
+      filingAttemptId = attempt.filing_attempt_id
+      filingOutcome   = attempt.outcome
+      await db.setObligationCurrentFilingAttempt(workflow.obligation_id, attempt.filing_attempt_id)
+    }
+
+    // ── 2. Audit Trail Written ─────────────────────────────────────────────────
+    await auditTrailService.log({
+      entity_type:   'workflow_instance',
+      entity_id:     workflowInstanceId,
+      tenant_id:     workflow.tenant_id,
+      actor_type:    'user',
+      actor_user_id: actorUserId,
+      event_type:    'workflow_completed',
+      from_state:    workflow.status,
+      to_state:      'completed',
+      reason:        null,
+      metadata:      {
+        from_phase:        workflow.current_phase,
+        filing_attempt_id: filingAttemptId,
+        filing_outcome:    filingOutcome,
+        filing_channel:    filing?.filing_channel ?? null,
+        reference_number:  filing?.reference_number ?? null,
+      },
+    }, db)
+
+    // ── 3. Workflow Status Updated ─────────────────────────────────────────────
     await db.closePhaseHistory(workflowInstanceId, workflow.current_phase)
     await db.updateWorkflowInstance(workflowInstanceId, {
       current_phase:       'Completed',
@@ -487,8 +539,8 @@ export class WorkflowInstanceService {
       entered_at:           now,
     })
 
-    // Update obligation status to 'filed' if filing was accepted
-    if (filingAttemptId && workflow.obligation_id) {
+    // Obligation moves to 'filed' only on an accepted filing outcome
+    if (workflow.obligation_id && filingOutcome === 'accepted') {
       await db.updateObligationStatus(workflow.obligation_id, 'filed')
       await db.cancelPendingReminders(workflow.obligation_id)
     }
@@ -497,22 +549,6 @@ export class WorkflowInstanceService {
     await taskGenerationService.generateTasksForPhase(
       workflowInstanceId, 'Completed', db, actorUserId
     )
-
-    await auditTrailService.log({
-      entity_type:   'workflow_instance',
-      entity_id:     workflowInstanceId,
-      tenant_id:     workflow.tenant_id,
-      actor_type:    'user',
-      actor_user_id: actorUserId,
-      event_type:    'workflow_completed',
-      from_state:    workflow.status,
-      to_state:      'completed',
-      reason:        null,
-      metadata:      {
-        from_phase:       workflow.current_phase,
-        filing_attempt_id: filingAttemptId,
-      },
-    }, db)
   }
 
   /**

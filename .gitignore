@@ -20,3 +20,6 @@ pnpm-debug.log*
 .env*.local
 
 .vercel
+node_modules/
+.next/
+.claude/

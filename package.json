@@ -15,8 +15,9 @@
     "test:workflow:service": "ts-node --project tsconfig.test.json lib/workflow/tests/workflow-service.test.ts",
     "test:workflow:dependency": "ts-node --project tsconfig.test.json lib/workflow/tests/dependency-engine.test.ts",
     "test:workflow:audit": "ts-node --project tsconfig.test.json lib/workflow/tests/audit-trail.test.ts",
+    "test:workflow:filing": "ts-node --project tsconfig.test.json lib/workflow/tests/filing-attempts.test.ts",
     "test:notifications": "ts-node --project tsconfig.test.json lib/notifications/tests/notification-adapters.test.ts",
-    "test:workflow": "npm run test:workflow:task-generation && npm run test:workflow:service && npm run test:workflow:dependency && npm run test:workflow:audit && npm run test:notifications"
+    "test:workflow": "npm run test:workflow:task-generation && npm run test:workflow:service && npm run test:workflow:dependency && npm run test:workflow:audit && npm run test:workflow:filing && npm run test:notifications"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.2",

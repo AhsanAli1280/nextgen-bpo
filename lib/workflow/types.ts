@@ -281,6 +281,46 @@ export interface ObligationRow {
   created_at:           Date
 }
 
+// ── Filing attempts (frozen DATABASE_ARCHITECTURE_FINAL §17) ──────────────────
+
+export type FilingChannel = 'eZfile' | 'physical' | 'PSX portal'
+export type FilingOutcome = 'pending' | 'accepted' | 'rejected' | 'queries_raised'
+
+export interface FilingAttemptRow {
+  filing_attempt_id:    string
+  obligation_id:        string
+  workflow_instance_id: string
+  attempt_number:       number
+  filing_channel:       FilingChannel
+  reference_number:     string | null
+  submitted_at:         Date
+  outcome:              FilingOutcome
+  outcome_reason:       string | null
+  outcome_recorded_at:  Date | null
+  filed_by_user_id:     string | null
+}
+
+export interface FilingAttemptToCreate {
+  obligation_id:        string
+  workflow_instance_id: string
+  filing_channel:       FilingChannel
+  reference_number:     string | null
+  outcome:              FilingOutcome
+  outcome_reason:       string | null
+  filed_by_user_id:     string | null
+}
+
+/**
+ * Caller-supplied filing data at workflow completion.
+ * The service derives attempt_number, submitted_at, outcome_recorded_at.
+ */
+export interface FilingInput {
+  filing_channel:    FilingChannel
+  reference_number?: string | null
+  outcome?:          FilingOutcome   // default 'accepted'
+  outcome_reason?:   string | null
+}
+
 export interface ObligationWithTemplate {
   obligation:       ObligationRow
   workflowTemplate: WorkflowTemplateRow | null
@@ -452,6 +492,11 @@ export interface WorkflowDbAdapter {
   updateObligationStatus(id: string, status: ObligationStatus): Promise<void>
   loadActiveObligations(tenantId?: string): Promise<ObligationWithTemplate[]>
   cancelPendingReminders(obligationId: string): Promise<void>
+
+  // ── Filing attempts (frozen §17 filing model)
+  createFilingAttempt(input: FilingAttemptToCreate): Promise<FilingAttemptRow>
+  loadFilingAttempts(obligationId: string): Promise<FilingAttemptRow[]>
+  setObligationCurrentFilingAttempt(obligationId: string, filingAttemptId: string): Promise<void>
 
   // ── Escalation
   loadActiveEscalationPolicies(tenantId?: string): Promise<EscalationPolicyRow[]>

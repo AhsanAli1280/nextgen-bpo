@@ -19,6 +19,8 @@ import type {
   EscalationPolicyRow,
   EscalationPolicyStepRow,
   EntityType,
+  FilingAttemptRow,
+  FilingAttemptToCreate,
   InAppNotificationToCreate,
   NotificationOutboxRow,
   NotificationOutboxToCreate,
@@ -284,6 +286,7 @@ export class InMemoryWorkflowDbAdapter implements WorkflowDbAdapter {
   readonly inAppNotifications: InAppNotificationToCreate[]        = []
   readonly taskDependencies:   TaskDependencyRow[]                = []
   readonly obligations:        Map<string, ObligationRow>         = new Map()
+  readonly filingAttempts:     FilingAttemptRow[]                 = []
   readonly users:              Map<string, UserRow>               = new Map()
 
   constructor() {
@@ -529,6 +532,48 @@ export class InMemoryWorkflowDbAdapter implements WorkflowDbAdapter {
       }
     })
   }
+
+  // ── Filing attempts (frozen §17) ────────────────────────────────────────────
+
+  async createFilingAttempt(input: FilingAttemptToCreate): Promise<FilingAttemptRow> {
+    const existing      = this.filingAttempts.filter(f => f.obligation_id === input.obligation_id)
+    const attemptNumber = existing.length + 1
+    const now           = new Date()
+    const row: FilingAttemptRow = {
+      filing_attempt_id:    randomUUID(),
+      obligation_id:        input.obligation_id,
+      workflow_instance_id: input.workflow_instance_id,
+      attempt_number:       attemptNumber,
+      filing_channel:       input.filing_channel,
+      reference_number:     input.reference_number,
+      submitted_at:         now,
+      outcome:              input.outcome,
+      outcome_reason:       input.outcome_reason,
+      outcome_recorded_at:  input.outcome === 'pending' ? null : now,
+      filed_by_user_id:     input.filed_by_user_id,
+    }
+    // Append-only: never overwrite a prior attempt (frozen §17 — bounced-twice = 3 rows)
+    this.filingAttempts.push(row)
+    return { ...row }
+  }
+
+  async loadFilingAttempts(obligationId: string): Promise<FilingAttemptRow[]> {
+    return this.filingAttempts
+      .filter(f => f.obligation_id === obligationId)
+      .sort((a, b) => a.attempt_number - b.attempt_number)
+      .map(f => ({ ...f }))
+  }
+
+  async setObligationCurrentFilingAttempt(
+    obligationId:    string,
+    filingAttemptId: string
+  ): Promise<void> {
+    // ObligationRow (workflow view) does not carry current_filing_attempt_id;
+    // tracked here in a side map mirroring obligations.current_filing_attempt_id (§16).
+    this.obligationCurrentFiling.set(obligationId, filingAttemptId)
+  }
+
+  readonly obligationCurrentFiling: Map<string, string> = new Map()
 
   // ── Escalation ────────────────────────────────────────────────────────────
 

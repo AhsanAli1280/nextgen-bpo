@@ -339,7 +339,9 @@ await test('WF-01: full phase walk completes without errors', async () => {
   await taskAssignmentEngine.completeTask(regulatorTask.task_id, USER, db)
 
   // Complete workflow
-  await workflowInstanceService.completeWorkflow(WF_ID, 'fa-test-001', USER, db)
+  await workflowInstanceService.completeWorkflow(
+    WF_ID, { filing_channel: 'eZfile', reference_number: 'fa-test-001', outcome: 'accepted' }, USER, db
+  )
 
   const final = await db.loadWorkflowInstance(WF_ID)
   assert.strictEqual(final.status,        'completed')
@@ -373,9 +375,20 @@ await test('WF-01: obligation.status set to filed after complete with filingAtte
     await taskAssignmentEngine.completeTask(t.task_id, USER, db)
   }
 
-  await workflowInstanceService.completeWorkflow(WF_ID, 'filing-001', USER, db)
+  await workflowInstanceService.completeWorkflow(
+    WF_ID, { filing_channel: 'eZfile', reference_number: 'filing-001', outcome: 'accepted' }, USER, db
+  )
   const obl = await db.loadObligation(OBL_ID)
   assert.strictEqual(obl.status, 'filed', 'obligation must be filed')
+
+  // Filing history preserved (frozen §17)
+  const attempts = await db.loadFilingAttempts(OBL_ID)
+  assert.strictEqual(attempts.length, 1, 'exactly one filing attempt recorded')
+  assert.strictEqual(attempts[0].attempt_number, 1)
+  assert.strictEqual(attempts[0].reference_number, 'filing-001')
+  assert.strictEqual(attempts[0].outcome, 'accepted')
+  assert.strictEqual(attempts[0].filed_by_user_id, USER)
+  assert.ok(attempts[0].outcome_recorded_at, 'outcome_recorded_at set for accepted')
 })
 
 // ── WF-02: AGM workflow with approval_requirement_type = none ─────────────────
