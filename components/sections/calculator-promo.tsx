@@ -31,7 +31,7 @@ export function CalculatorPromo() {
                 Pakistan Withholding Tax Calculator
               </h2>
               <p className="text-white/75 leading-relaxed">
-                Calculate withholding taxes instantly using Finance Act 2025 rates with full calculation transparency.
+                Calculate withholding taxes instantly using Finance Act 2026 rates for Tax Year 2026-27 with full calculation transparency.
               </p>
             </div>
           </div>

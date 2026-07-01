@@ -18,9 +18,9 @@ const inter = Inter({
 });
 
 const PAGE_URL = 'https://next-genbpo.com/wht-calculator';
-const PAGE_TITLE = 'Pakistan Withholding Tax Calculator 2025-26 (FBR Rates)';
+const PAGE_TITLE = 'Pakistan Withholding Tax Calculator 2026-27 (FBR Rates)';
 const PAGE_DESCRIPTION =
-  'Free FBR withholding tax calculator for 2025-26. Instant WHT on salary, rent, dividends, property, goods & services under Finance Act 2025 rates.';
+  'Free FBR withholding tax calculator for 2026-27. Instant WHT on salary, rent, dividends, property, goods & services under Finance Act 2026 rates.';
 
 export const metadata: Metadata = {
   // absolute: skip the "| NextGen BPO Solutions" template — full title would exceed 70 chars
@@ -44,10 +44,10 @@ const webApplicationSchema = {
   operatingSystem: 'Web',
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'PKR' },
   description:
-    'Free calculator for Pakistan withholding tax under the Income Tax Ordinance 2001 and Finance Act 2025. Covers 16 withholding categories including salary (149), dividends (150), rent (155), goods, services and contracts (153), and property transactions (236C/236K).',
+    'Free calculator for Pakistan withholding tax under the Income Tax Ordinance 2001 and Finance Act 2026. Covers withholding categories including salary (149), dividends (150), rent (155), goods, services and contracts (153), and property transactions (236C/236K).',
   provider: { '@id': 'https://next-genbpo.com/#organization' },
   featureList: [
-    'Finance Act 2025 (FY2025-26) rate tables',
+    'Finance Act 2026 (FY2026-27) rate tables',
     '16 Income Tax Ordinance withholding categories',
     'ATL / Non-ATL rate resolution',
     'Progressive salary slab breakdown',

@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, useTransition, useRef, useEffect } from 'react';
 import { computeWht } from '@/lib/wht-engine/engine';
-import { getConfigByYear, getDefaultFinanceActYear } from '@/lib/wht-engine/loader';
+import { getConfigByYear, getDefaultVisibleTaxYear } from '@/lib/wht-engine/loader';
 import { VISIBLE_TAX_YEARS } from '@/lib/tax-rules/rules/registry';
 import { WhtResult, FieldDefinition } from '@/lib/tax-rules/types';
 import { taxYearLabel } from '@/lib/utils/tax-year';
@@ -480,9 +480,9 @@ function YearSelector({ value, onChange }: { value: number; onChange: (y: number
 // Static metadata for the hero trust-badge cards.
 // Add entries here to extend the row without touching layout.
 const TRUST_BADGES: ReadonlyArray<{ title: string; description: string; icon: 'shield' | 'check' | 'badge' }> = [
-  { title: 'Finance Act 2025 Compliant', description: 'Built on the latest enacted withholding tax law', icon: 'shield' },
-  { title: 'Updated June 2025', description: 'Rate tables refreshed for the current fiscal year', icon: 'check' },
-  { title: 'FY2025-26 Rates Verified', description: 'Cross-checked against the official FBR rate card', icon: 'badge' },
+  { title: 'Finance Act 2026 Compliant', description: 'Built on the latest enacted withholding tax law', icon: 'shield' },
+  { title: 'Tax Year 2026-27 Release', description: 'Updated for the current tax year under Finance Act 2026', icon: 'check' },
+  { title: 'FY2026-27 Rates Verified', description: 'Cross-checked against Finance Act 2026 and published rate sources', icon: 'badge' },
 ];
 
 function TrustBadgeIcon({ icon }: { icon: 'shield' | 'check' | 'badge' }) {
@@ -557,10 +557,12 @@ interface WhtCalculatorProps {
 }
 
 export function WhtCalculator({ fontClass }: WhtCalculatorProps) {
-  // getDefaultFinanceActYear() never returns a missing-registry year: if today's
-  // natural Finance Act year is absent from the registry it returns the latest
-  // available year instead. Returns null only when the registry is empty.
-  const defaultYear = getDefaultFinanceActYear();
+  // HOTFIX-001: the initial active year is resolved over VISIBLE_TAX_YEARS only,
+  // never the full RATE_REGISTRY. If the date-derived natural Finance Act year is
+  // not visible (e.g. a not-yet-enabled future year), this falls back to the
+  // latest visible year — so a hidden config can never become the default, be
+  // computed, or be rendered. Returns null only when there are no visible years.
+  const defaultYear = getDefaultVisibleTaxYear(VISIBLE_TAX_YEARS);
   const [activeYear, setActiveYear] = useState<number>(defaultYear ?? 0);
   const [sectionCode, setSectionCode] = useState<string>('');
   const [fieldValues, setFieldValues] = useState<FieldValues>({});
@@ -751,8 +753,8 @@ export function WhtCalculator({ fontClass }: WhtCalculatorProps) {
                 lineHeight: 1.65, maxWidth: '560px',
               }}>
                 Eliminate manual rate-card lookups. Calculate Pakistan withholding
-                taxes instantly using Finance Act 2025 rates with complete
-                calculation transparency.
+                taxes instantly using Finance Act 2026 rates for Tax Year 2026-27
+                with complete calculation transparency.
               </p>
 
               <TrustBadges />
@@ -771,7 +773,7 @@ export function WhtCalculator({ fontClass }: WhtCalculatorProps) {
                 fontSize: '0.8125rem', color: 'var(--color-dark-muted)',
                 lineHeight: 1.6, marginTop: '14px',
               }}>
-                All calculations use the latest Finance Act 2025 withholding tax rates.
+                All calculations use the latest Finance Act 2026 withholding tax rates.
               </p>
             </div>
           </div>

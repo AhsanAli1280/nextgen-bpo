@@ -122,10 +122,18 @@ export function computeWht(input: WhtInput): WhtResult {
     subType = annualTotal >= 500_000 ? 'LIFE_INSURANCE_AGENT_HIGH' : 'LIFE_INSURANCE_AGENT_LOW';
   }
 
-  // Sections 236C/236K: the applicable rate depends on which FMV band the
-  // property value falls into (Tenth Schedule, Rules 1 & 1A). This band is
-  // derived from the amount itself rather than selected by the user.
-  if (section.code === '236C' || section.code === '236K') {
+  // Sections 236C/236K: for FMV-banded configs (FY2025-26 and earlier) the
+  // applicable rate depends on which FMV band the property value falls into
+  // (Tenth Schedule, Rules 1 & 1A). This band is derived from the amount
+  // itself rather than selected by the user. The guard keys off whether the
+  // active config actually defines FMV-band rules: Finance Act 2026 replaced
+  // Division X (§236C) and Division XVIII (§236K) with single flat rates
+  // (2.75% / 1.25%), so the FY2026-27 config carries no FMV_* rules and must
+  // skip band derivation (subType stays null → flat ATL/Non-ATL rule resolves).
+  if (
+    (section.code === '236C' || section.code === '236K') &&
+    section.rules.some((r) => r.subType === 'FMV_LE_50M')
+  ) {
     subType = rawAmountVal <= 50_000_000
       ? 'FMV_LE_50M'
       : rawAmountVal <= 100_000_000
@@ -254,6 +262,32 @@ export function computeWht(input: WhtInput): WhtResult {
     }
   }
 
+  // §149(3) Board-of-Directors meeting / directorship fee — flat 20% on the
+  // gross fee (Moore TY2027 Chart, §149(3)). Handled in a dedicated branch
+  // because §149 is otherwise a progressive-slab section; the directorship fee
+  // is a flat charge on the entered gross amount (no slab, no annualisation).
+  if (section.code === '149' && subType === 'DIRECTOR_FEE') {
+    const feeTax = enteredAmount.mul(new Decimal('0.20')).round();
+    const directorPartial = {
+      applicable: true,
+      sectionCode: section.code,
+      sectionLabel: section.label,
+      legalReference: section.legalReference,
+      financeActYear: config.financeActYear,
+      transactionSummary: `Section ${section.code} - DIRECTOR FEE (149(3)) - PKR ${enteredAmount.toNumber().toLocaleString()}`,
+      inputs: sectionSpecific,
+      enteredAmount,
+      enteredAmountLabel: amountFieldDef.label,
+      rate: 20,
+      rateLabel: '20% (Board / Directorship Fee - Sec 149(3))',
+      whtAmountPerPeriod: feeTax,
+      netAmountPerPeriod: enteredAmount.sub(feeTax),
+      isProgressiveSlab: false,
+      slabBreakdown: [],
+    };
+    return { ...directorPartial, explanation: buildExplanation(directorPartial) };
+  }
+
   // §149(1A) Pension — special branch. Pension ≤ Rs 10M is nil. Pension
   // > Rs 10M with pensioner age < 70 is taxed at 5% on the excess plus a
   // 10% surcharge on the tax (Div-I Pt-I 1st Sch. clauses (1)/(2);
@@ -270,10 +304,18 @@ export function computeWht(input: WhtInput): WhtResult {
     } else if (ageNum !== undefined && ageNum >= 70) {
       pensionRateLabel = '0% (Pension > Rs 10M but pensioner age ≥ 70 — exempt)';
     } else {
-      // Age < 70 (default if unspecified — conservative i.e., apply tax)
+      // Age < 70 (default if unspecified — conservative i.e., apply tax).
+      // The 10% surcharge component derives from s.4AB, which Finance Act 2026
+      // amended to "no surcharge shall be payable". For FY2026-27 onwards the
+      // 5% charge on the excess remains but the surcharge is dropped.
       const excess = effectiveAmount.sub(PENSION_THRESHOLD);
-      pensionTaxAnnual = excess.mul(new Decimal('0.05')).mul(new Decimal('1.10')).round();
-      pensionRateLabel = '5% × Excess >Rs.10M + 10% Surcharge (Pension, age <70 - Sec 149(1A))';
+      const pensionSurchargeApplies = config.financeActYear < 2026;
+      pensionTaxAnnual = pensionSurchargeApplies
+        ? excess.mul(new Decimal('0.05')).mul(new Decimal('1.10')).round()
+        : excess.mul(new Decimal('0.05')).round();
+      pensionRateLabel = pensionSurchargeApplies
+        ? '5% × Excess >Rs.10M + 10% Surcharge (Pension, age <70 - Sec 149(1A))'
+        : '5% × Excess >Rs.10M (Pension, age <70 - Sec 149(1A); s.4AB surcharge repealed by Finance Act 2026)';
     }
 
     const pensionPerPeriod = pensionTaxAnnual.div(multiplier).round();
@@ -298,6 +340,42 @@ export function computeWht(input: WhtInput): WhtResult {
       slabBreakdown: [],
     };
     return { ...pensionPartial, explanation: buildExplanation(pensionPartial) };
+  }
+
+  // §151B — Payments by life insurance companies and takaful operators
+  // (Finance Act 2026, new section + Division IC Pt III 1st Sch). The amount
+  // liable to tax is the GROSS payout reduced by the aggregate premiums /
+  // contributions paid (s.151B(2)); the rate depends on the timing band
+  // (within 1 year → 15%, 1–4 years → 10%) and the deduction is FINAL TAX.
+  // Payouts after 4 years, or on death / disability, are exempt (rate 0%).
+  // The net-of-premiums base is a computation pattern unique to this section,
+  // so it is handled in a dedicated branch (mirroring §149 pension).
+  if (section.code === '151B') {
+    const premiumsRaw = sectionSpecific.premiumsPaid;
+    const premiums =
+      typeof premiumsRaw === 'number' && premiumsRaw > 0 ? new Decimal(premiumsRaw) : new Decimal(0);
+    const taxableBase = Decimal.max(enteredAmount.sub(premiums), new Decimal(0));
+    const rule151b = resolveRule(section, txDate, atlStatus, taxpayerType, subType);
+    const tax151b = taxableBase.mul(new Decimal(rule151b.rate).div(100)).round();
+
+    const partial151b = {
+      applicable: true,
+      sectionCode: section.code,
+      sectionLabel: section.label,
+      legalReference: section.legalReference,
+      financeActYear: config.financeActYear,
+      transactionSummary: `Section ${section.code} - ${subType ?? ''} - PKR ${enteredAmount.toNumber().toLocaleString()}`,
+      inputs: sectionSpecific,
+      enteredAmount,
+      enteredAmountLabel: amountFieldDef.label,
+      rate: rule151b.rate,
+      rateLabel: rule151b.rateLabel,
+      whtAmountPerPeriod: tax151b,
+      netAmountPerPeriod: enteredAmount.sub(tax151b),
+      isProgressiveSlab: false,
+      slabBreakdown: [],
+    };
+    return { ...partial151b, explanation: buildExplanation(partial151b) };
   }
 
   // 9. Core Calculation: Slabs vs. Flat rule
@@ -347,8 +425,12 @@ export function computeWht(input: WhtInput): WhtResult {
 
     // §149: 9% surcharge on tax payable when annualised taxable income
     // exceeds Rs 10,000,000 — proviso to s.4AB, Div-I Pt-I 1st Sch.
+    // REPEALED by Finance Act 2026 (Act §5(2): the s.4AB proviso is
+    // substituted with "no surcharge shall be payable"). Gated on
+    // financeActYear < 2026 so FY2025-26 keeps the surcharge and FY2026-27
+    // onwards does not.
     let surchargeApplied = false;
-    if (section.code === '149' && effectiveAmount.gt(10_000_000)) {
+    if (section.code === '149' && config.financeActYear < 2026 && effectiveAmount.gt(10_000_000)) {
       computedTax = computedTax.mul(new Decimal('1.09'));
       surchargeApplied = true;
     }

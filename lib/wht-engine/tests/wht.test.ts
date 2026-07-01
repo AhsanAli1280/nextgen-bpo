@@ -6,11 +6,13 @@ import {
   getConfigByYear,
   getActiveFinanceActYear,
   getDefaultFinanceActYear,
+  getDefaultVisibleTaxYear,
   validateRateConfig,
 } from '../index';
 import { formatNumber, formatPkr } from '../../utils/currency';
 import { taxYearLabel } from '../../utils/tax-year';
 import { RATE_REGISTRY, WhtRule, WhtRateConfig, FREQUENCY_MULTIPLIERS } from '../../tax-rules';
+import { VISIBLE_TAX_YEARS } from '../../tax-rules/rules/registry';
 
 const configFY2026 = RATE_REGISTRY[2025]; // Tax Year 2025-26 (placeholder)
 const configFY2027 = RATE_REGISTRY[2026]; // Tax Year 2026-27
@@ -66,7 +68,8 @@ function testFrequencies() {
   console.log('\n3. Testing Payment Frequencies & Multipliers...');
 
   // ONE_TIME Payment WHT (Section 153a Goods, Company, ATL)
-  // FY2027 (Finance Act 2026) Rate for OTHER_GOODS (Company, ATL) is 4%
+  // FY2027 (Finance Act 2026) Rate for OTHER_GOODS (Company, ATL) is 5%
+  // (carried forward from fy2026 — Finance Act 2026 made no §153 goods change).
   const oneTimeInput = {
     sectionCode: '153a',
     transactionDate: '2026-09-15',
@@ -80,9 +83,9 @@ function testFrequencies() {
 
   const oneTimeResult = computeWht(oneTimeInput);
   assert.strictEqual(oneTimeResult.applicable, true);
-  assert.strictEqual(oneTimeResult.rate, 4);
-  assert.deepStrictEqual(oneTimeResult.whtAmountPerPeriod, new Decimal(4000));
-  assert.deepStrictEqual(oneTimeResult.netAmountPerPeriod, new Decimal(96000));
+  assert.strictEqual(oneTimeResult.rate, 5);
+  assert.deepStrictEqual(oneTimeResult.whtAmountPerPeriod, new Decimal(5000));
+  assert.deepStrictEqual(oneTimeResult.netAmountPerPeriod, new Decimal(95000));
   assert.strictEqual(oneTimeResult.enteredFrequency, undefined);
 
   // SEMI_ANNUAL Rent Payment WHT (Section 155 Rent, Company, ATL)
@@ -117,12 +120,13 @@ function testProgressiveSlabs() {
   console.log('\n4. Testing Progressive Slabs Computation...');
 
   // Section 149 - Salary: PKR 200,000 / month salary, no bonus
-  // FY2027 Slabs:
+  // FY2027 Slabs (Finance Act 2026, Div I Pt I 1st Sch):
   // 0 - 600,000: 0%
-  // 600,001 - 1,200,000: 5% on excess of 600k (tax in slab = 30k)
-  // 1,200,001 - 2,400,000: 15% on excess of 1,200k (here excess = 1,200,000 * 15% = 180k)
-  // Total Annual tax = 30k + 180k = 210k
-  // Monthly deduction = 210,000 / 12 = 17,500
+  // 600,001 - 1,200,000: 1% on excess of 600k (tax in slab = 6k)
+  // 1,200,001 - 2,200,000: 11% on excess of 1,200k (1,000,000 × 11% = 110k)
+  // 2,200,001 - 3,200,000: 20% on excess of 2,200k (here 200,000 × 20% = 40k)
+  // Total Annual tax = 6k + 110k + 40k = 156k
+  // Monthly deduction = 156,000 / 12 = 13,000
   const salaryInput = {
     sectionCode: '149',
     transactionDate: '2026-07-15',
@@ -137,22 +141,24 @@ function testProgressiveSlabs() {
   assert.strictEqual(salaryResult.applicable, true);
   assert.strictEqual(salaryResult.isProgressiveSlab, true);
   assert.deepStrictEqual(salaryResult.annualisedAmount, new Decimal(2400000));
-  assert.deepStrictEqual(salaryResult.whtAmountAnnual, new Decimal(210000));
-  assert.deepStrictEqual(salaryResult.whtAmountPerPeriod, new Decimal(17500));
-  assert.deepStrictEqual(salaryResult.netAmountPerPeriod, new Decimal(182500));
+  assert.deepStrictEqual(salaryResult.whtAmountAnnual, new Decimal(156000));
+  assert.deepStrictEqual(salaryResult.whtAmountPerPeriod, new Decimal(13000));
+  assert.deepStrictEqual(salaryResult.netAmountPerPeriod, new Decimal(187000));
 
-  // Validate slab breakdown output
-  assert.strictEqual(salaryResult.slabBreakdown?.length, 6);
+  // Validate slab breakdown output (FY2027 has 8 enacted bands)
+  assert.strictEqual(salaryResult.slabBreakdown?.length, 8);
   assert.deepStrictEqual(salaryResult.slabBreakdown[0].taxableAmount, new Decimal(600000));
   assert.deepStrictEqual(salaryResult.slabBreakdown[0].tax, new Decimal(0));
   assert.deepStrictEqual(salaryResult.slabBreakdown[1].taxableAmount, new Decimal(600000));
-  assert.deepStrictEqual(salaryResult.slabBreakdown[1].tax, new Decimal(30000));
-  assert.deepStrictEqual(salaryResult.slabBreakdown[2].taxableAmount, new Decimal(1200000));
-  assert.deepStrictEqual(salaryResult.slabBreakdown[2].tax, new Decimal(180000));
+  assert.deepStrictEqual(salaryResult.slabBreakdown[1].tax, new Decimal(6000));
+  assert.deepStrictEqual(salaryResult.slabBreakdown[2].taxableAmount, new Decimal(1000000));
+  assert.deepStrictEqual(salaryResult.slabBreakdown[2].tax, new Decimal(110000));
+  assert.deepStrictEqual(salaryResult.slabBreakdown[3].taxableAmount, new Decimal(200000));
+  assert.deepStrictEqual(salaryResult.slabBreakdown[3].tax, new Decimal(40000));
 
   console.log('✓ Progressive slabs basic tests passed.');
 
-  // 4b. Salary Slab boundary tests:
+  // 4b. Salary Slab boundary tests (FY2027 enacted bands):
   // - 600,000
   // - 600,001
   // - 1,200,000
@@ -177,20 +183,20 @@ function testProgressiveSlabs() {
   // 1. Boundary 600,000 (tax should be 0)
   testBoundary(600000, 0);
 
-  // 2. Boundary 600,001 (excess is 1 -> 1 * 5% = 0.05 -> rounds to 0 WHT)
+  // 2. Boundary 600,001 (excess is 1 -> 1 * 1% = 0.01 -> rounds to 0 WHT)
   testBoundary(600001, 0);
 
-  // 3. Boundary 1,200,000 (excess is 600,000 -> 600,000 * 5% = 30,000)
-  testBoundary(1200000, 30000);
+  // 3. Boundary 1,200,000 (excess is 600,000 -> 600,000 * 1% = 6,000)
+  testBoundary(1200000, 6000);
 
-  // 4. Boundary 1,200,001 (excess is 1 -> 30,000 + 1 * 15% = 30,000.15 -> rounds to 30,000)
-  testBoundary(1200001, 30000);
+  // 4. Boundary 1,200,001 (excess is 1 -> 6,000 + 1 * 11% = 6,000.11 -> rounds to 6,000)
+  testBoundary(1200001, 6000);
 
-  // 5. Boundary 2,400,000 (excess is 1.2M -> 30,000 + 1,200,000 * 15% = 210,000)
-  testBoundary(2400000, 210000);
+  // 5. Boundary 2,400,000 (6,000 + 1,000,000×11% + 200,000×20% = 6,000 + 110,000 + 40,000 = 156,000)
+  testBoundary(2400000, 156000);
 
-  // 6. Boundary 2,400,001 (excess is 1 -> 210,000 + 1 * 25% = 210,000.25 -> rounds to 210,000)
-  testBoundary(2400001, 210000);
+  // 6. Boundary 2,400,001 (excess is 1 -> 156,000 + 1 * 20% = 156,000.20 -> rounds to 156,000)
+  testBoundary(2400001, 156000);
 
   console.log('✓ Specific slab boundaries passed.');
 }
@@ -219,14 +225,15 @@ function testThresholdGuard() {
   assert.deepStrictEqual(belowResult.whtAmountPerPeriod, new Decimal(0));
   assert.ok(belowResult.inapplicableReason?.includes('30,000'));
   // Theoretical rate fields (presentation layer — do not alter statutory determination)
-  assert.strictEqual(belowResult.theoreticalRate, 15, 'threshold guard: theoreticalRate = 15% (OTHER_SERVICES ATL)');
-  assert.deepStrictEqual(belowResult.theoreticalWhtAmount, new Decimal(3750), 'threshold guard: 25,000 × 15% = 3,750');
+  // FY2027: OTHER_SERVICES (residual) ATL = 14% per Finance Act 2026 Div III(2)(v).
+  assert.strictEqual(belowResult.theoreticalRate, 14, 'threshold guard: theoreticalRate = 14% (OTHER_SERVICES ATL, FA2026)');
+  assert.deepStrictEqual(belowResult.theoreticalWhtAmount, new Decimal(3500), 'threshold guard: 25,000 × 14% = 3,500');
   assert.strictEqual(belowResult.thresholdMinimum, 30000, 'threshold guard: thresholdMinimum = 30,000');
-  assert.ok(belowResult.explanation.includes('3,750'), 'explanation includes theoretical WHT 3,750');
+  assert.ok(belowResult.explanation.includes('3,500'), 'explanation includes theoretical WHT 3,500');
   assert.ok(belowResult.explanation.includes('PKR 0'), 'explanation includes Final WHT Payable PKR 0');
   assert.ok(belowResult.explanation.includes('Illustrative Calculation'), 'explanation includes illustrative section');
 
-  // fy2027 153b OTHER_SERVICES ATL = 15% [PLACEHOLDER]; 80,000 × 15% = 12,000
+  // fy2027 153b OTHER_SERVICES (residual) ATL = 14% (FA2026); 80,000 × 14% = 11,200
   const aboveInput = {
     sectionCode: '153b',
     transactionDate: '2026-08-10',
@@ -240,8 +247,8 @@ function testThresholdGuard() {
 
   const aboveResult = computeWht(aboveInput);
   assert.strictEqual(aboveResult.applicable, true);
-  assert.strictEqual(aboveResult.rate, 15);
-  assert.deepStrictEqual(aboveResult.whtAmountPerPeriod, new Decimal(12000));
+  assert.strictEqual(aboveResult.rate, 14);
+  assert.deepStrictEqual(aboveResult.whtAmountPerPeriod, new Decimal(11200));
 
   console.log('✓ Threshold guard tests passed.');
 }
@@ -360,11 +367,11 @@ function testSection149WithBonusAllowances() {
   // Annual salary: 100,000 × 12 = 1,200,000
   // Annual bonus:                    600,000
   // Total taxable:                 1,800,000
-  // Slabs:
+  // Slabs (FA2026):
   //   Band 1 (0–600,000):     600,000 × 0%   =        0
-  //   Band 2 (600,001–1.2M):  600,000 × 5%   =   30,000
-  //   Band 3 (1.2M–2.4M):     600,000 × 15%  =   90,000
-  // Annual WHT = 120,000 | Monthly WHT = 10,000
+  //   Band 2 (600,001–1.2M):  600,000 × 1%   =    6,000
+  //   Band 3 (1.2M–2.2M):     600,000 × 11%  =   66,000
+  // Annual WHT = 72,000 | Monthly WHT = 6,000
   const scenarioA = computeWht({
     sectionCode: '149',
     transactionDate: '2026-09-01',
@@ -378,22 +385,23 @@ function testSection149WithBonusAllowances() {
   assert.strictEqual(scenarioA.applicable, true);
   assert.strictEqual(scenarioA.isProgressiveSlab, true);
   assert.deepStrictEqual(scenarioA.annualisedAmount, new Decimal(1800000));
-  assert.deepStrictEqual(scenarioA.whtAmountAnnual, new Decimal(120000));
-  assert.deepStrictEqual(scenarioA.whtAmountPerPeriod, new Decimal(10000));
-  assert.deepStrictEqual(scenarioA.netAmountPerPeriod, new Decimal(90000));
+  assert.deepStrictEqual(scenarioA.whtAmountAnnual, new Decimal(72000));
+  assert.deepStrictEqual(scenarioA.whtAmountPerPeriod, new Decimal(6000));
+  assert.deepStrictEqual(scenarioA.netAmountPerPeriod, new Decimal(94000));
   console.log('  ✓ Scenario A (salary + bonus) passed.');
 
   // Scenario B: Monthly Salary = 150,000, Other Monthly Allowances = 300,000
   // Annual salary:    150,000 × 12 = 1,800,000
   // Annual allowances: 300,000 × 12 = 3,600,000
   // Total taxable:                   5,400,000
-  // Slabs:
+  // Slabs (FA2026):
   //   Band 1 (0–600,000):       600,000 × 0%   =         0
-  //   Band 2 (600,001–1.2M):    600,000 × 5%   =    30,000
-  //   Band 3 (1.2M–2.4M):     1,200,000 × 15%  =   180,000
-  //   Band 4 (2.4M–3.6M):     1,200,000 × 25%  =   300,000
-  //   Band 5 (3.6M–6M):       1,800,000 × 30%  =   540,000
-  // Annual WHT = 1,050,000 | Monthly WHT = 87,500
+  //   Band 2 (600,001–1.2M):    600,000 × 1%   =     6,000
+  //   Band 3 (1.2M–2.2M):     1,000,000 × 11%  =   110,000
+  //   Band 4 (2.2M–3.2M):     1,000,000 × 20%  =   200,000
+  //   Band 5 (3.2M–4.1M):       900,000 × 25%  =   225,000
+  //   Band 6 (4.1M–5.4M):     1,300,000 × 29%  =   377,000
+  // Annual WHT = 918,000 | Monthly WHT = 76,500
   const scenarioB = computeWht({
     sectionCode: '149',
     transactionDate: '2026-09-01',
@@ -406,9 +414,9 @@ function testSection149WithBonusAllowances() {
   });
   assert.strictEqual(scenarioB.applicable, true);
   assert.deepStrictEqual(scenarioB.annualisedAmount, new Decimal(5400000));
-  assert.deepStrictEqual(scenarioB.whtAmountAnnual, new Decimal(1050000));
-  assert.deepStrictEqual(scenarioB.whtAmountPerPeriod, new Decimal(87500));
-  assert.deepStrictEqual(scenarioB.netAmountPerPeriod, new Decimal(62500));
+  assert.deepStrictEqual(scenarioB.whtAmountAnnual, new Decimal(918000));
+  assert.deepStrictEqual(scenarioB.whtAmountPerPeriod, new Decimal(76500));
+  assert.deepStrictEqual(scenarioB.netAmountPerPeriod, new Decimal(73500));
   console.log('  ✓ Scenario B (salary + allowances) passed.');
 
   // Scenario C: Monthly Salary = 100,000, Bonus = 600,000, Allowances = 300,000/month
@@ -416,7 +424,7 @@ function testSection149WithBonusAllowances() {
   // Annual bonus:                       600,000
   // Annual allowances: 300,000 × 12 = 3,600,000
   // Total taxable:                    5,400,000
-  // Slabs: same as Scenario B → Annual WHT = 1,050,000 | Monthly WHT = 87,500
+  // Slabs: same as Scenario B → Annual WHT = 918,000 | Monthly WHT = 76,500
   const scenarioC = computeWht({
     sectionCode: '149',
     transactionDate: '2026-09-01',
@@ -430,9 +438,9 @@ function testSection149WithBonusAllowances() {
   });
   assert.strictEqual(scenarioC.applicable, true);
   assert.deepStrictEqual(scenarioC.annualisedAmount, new Decimal(5400000));
-  assert.deepStrictEqual(scenarioC.whtAmountAnnual, new Decimal(1050000));
-  assert.deepStrictEqual(scenarioC.whtAmountPerPeriod, new Decimal(87500));
-  assert.deepStrictEqual(scenarioC.netAmountPerPeriod, new Decimal(12500));
+  assert.deepStrictEqual(scenarioC.whtAmountAnnual, new Decimal(918000));
+  assert.deepStrictEqual(scenarioC.whtAmountPerPeriod, new Decimal(76500));
+  assert.deepStrictEqual(scenarioC.netAmountPerPeriod, new Decimal(23500));
   console.log('  ✓ Scenario C (salary + bonus + allowances) passed.');
 
   // Regression: salary-only path must be unaffected
@@ -447,8 +455,8 @@ function testSection149WithBonusAllowances() {
     },
   });
   assert.deepStrictEqual(salaryOnlyRegression.annualisedAmount, new Decimal(2400000));
-  assert.deepStrictEqual(salaryOnlyRegression.whtAmountAnnual, new Decimal(210000));
-  assert.deepStrictEqual(salaryOnlyRegression.whtAmountPerPeriod, new Decimal(17500));
+  assert.deepStrictEqual(salaryOnlyRegression.whtAmountAnnual, new Decimal(156000));
+  assert.deepStrictEqual(salaryOnlyRegression.whtAmountPerPeriod, new Decimal(13000));
   console.log('  ✓ Regression (salary only, no bonus/allowances) passed.');
 
   console.log('✓ All Section 149 bonus/allowances tests passed.');
@@ -1006,9 +1014,10 @@ function testTrackARates2025() {
 
   console.log('  Section 155 ✓ (3 cases)');
 
-  // ── Cross-year regression: TY2026-27 (fy2027.ts) rates must be unaffected ─
-  // Section 149 in fy2027.ts still uses 5%/15%/25% boundaries at 2.4M/3.6M/6M.
-  // A date in Tax Year 2026-27 must still return the old FY2027 slab results.
+  // ── Cross-year separation: TY2026-27 (fy2027.ts) uses its own enacted slabs ─
+  // Section 149 in fy2027.ts uses the Finance Act 2026 bands (1/11/20/25/29/
+  // 32/35%). A date in Tax Year 2026-27 must resolve to those, NOT the
+  // FY2025-26 slabs. 200k/month → 2.4M annual → 6k + 110k + 40k = 156,000.
 
   const fy2027SalaryResult = computeWht({
     sectionCode: '149',
@@ -1016,10 +1025,10 @@ function testTrackARates2025() {
     sectionSpecific: { monthlySalary: 200000, frequency: 'MONTHLY', taxpayerType: 'INDIVIDUAL' },
   });
   assert.strictEqual(fy2027SalaryResult.financeActYear, 2026,
-    'Cross-year regression: 2026-09-01 must resolve to financeActYear 2026 (FY2026-27)');
-  assert.deepStrictEqual(fy2027SalaryResult.whtAmountAnnual, new Decimal(210000),
-    'Cross-year regression: fy2027 200k/month → 210,000 annual (5%/15% slabs still intact)');
-  console.log('  ✓ Cross-year regression: fy2027.ts slabs unaffected (200k/month → 210,000 in TY2026-27).');
+    'Cross-year separation: 2026-09-01 must resolve to financeActYear 2026 (FY2026-27)');
+  assert.deepStrictEqual(fy2027SalaryResult.whtAmountAnnual, new Decimal(156000),
+    'Cross-year separation: fy2027 200k/month → 156,000 annual (FA2026 enacted slabs)');
+  console.log('  ✓ Cross-year separation: fy2027.ts uses FA2026 enacted slabs (200k/month → 156,000 in TY2026-27).');
 
   console.log('✓ All Track A FY2025-26 verification tests passed. (22 assertions across 5 sections)');
 }
@@ -1380,14 +1389,14 @@ function testSection233() {
   assert.ok(section233_2026 !== undefined, '233 must exist in FY2026-27 registry');
   assert.ok(section233_2027 !== undefined, '233 must exist in FY2027-28 registry');
   assert.ok(
-    section233_2026!.rules.every((r) => r.rateLabel.includes('[PLACEHOLDER]')),
-    'FY2026-27 §233 rules must be marked [PLACEHOLDER] pending FBR validation'
+    section233_2026!.rules.every((r) => !r.rateLabel.includes('[PLACEHOLDER]')),
+    'FY2026-27 §233 rules must NOT be [PLACEHOLDER] — carried forward & reviewed vs Finance Act 2026 (Batch 1)'
   );
   assert.ok(
     section233_2027!.rules.every((r) => r.rateLabel.includes('[PLACEHOLDER]')),
     'FY2027-28 §233 rules must be marked [PLACEHOLDER] pending FBR validation'
   );
-  console.log('  ✓ FY2026-27 / FY2027-28 §233 present and marked [PLACEHOLDER].');
+  console.log('  ✓ §233 present; FY2026-27 reviewed (Batch 1), FY2027-28 still [PLACEHOLDER].');
 
   console.log('✓ All Section 233 tests passed. (8 assertions)');
 }
@@ -1430,14 +1439,14 @@ function testSection156() {
   assert.ok(section156_2026 !== undefined, '156 must exist in FY2026-27 registry');
   assert.ok(section156_2027 !== undefined, '156 must exist in FY2027-28 registry');
   assert.ok(
-    section156_2026!.rules.every((r) => r.rateLabel.includes('[PLACEHOLDER]')),
-    'FY2026-27 §156 rules must be marked [PLACEHOLDER] pending FBR validation'
+    section156_2026!.rules.every((r) => !r.rateLabel.includes('[PLACEHOLDER]')),
+    'FY2026-27 §156 rules must NOT be [PLACEHOLDER] — carried forward & reviewed vs Finance Act 2026 (Batch 1)'
   );
   assert.ok(
     section156_2027!.rules.every((r) => r.rateLabel.includes('[PLACEHOLDER]')),
     'FY2027-28 §156 rules must be marked [PLACEHOLDER] pending FBR validation'
   );
-  console.log('  ✓ FY2026-27 / FY2027-28 §156 present and marked [PLACEHOLDER].');
+  console.log('  ✓ §156 present; FY2026-27 reviewed (Batch 1), FY2027-28 still [PLACEHOLDER].');
 
   console.log('✓ All Section 156 tests passed. (6 assertions)');
 }
@@ -1471,14 +1480,14 @@ function testSection154() {
   assert.ok(section154_2026 !== undefined, '154 must exist in FY2026-27 registry');
   assert.ok(section154_2027 !== undefined, '154 must exist in FY2027-28 registry');
   assert.ok(
-    section154_2026!.rules.every((r) => r.rateLabel.includes('[PLACEHOLDER]')),
-    'FY2026-27 §154 rules must be marked [PLACEHOLDER] pending Finance Act 2026'
+    section154_2026!.rules.every((r) => !r.rateLabel.includes('[PLACEHOLDER]')),
+    'FY2026-27 §154 rules must NOT be [PLACEHOLDER] — carried forward from fy2026 (Batch 2 Div IV mapping pending)'
   );
   assert.ok(
     section154_2027!.rules.every((r) => r.rateLabel.includes('[PLACEHOLDER]')),
     'FY2027-28 §154 rules must be marked [PLACEHOLDER] pending Finance Act 2027'
   );
-  console.log('  ✓ FY2026-27 / FY2027-28 §154 present and marked [PLACEHOLDER].');
+  console.log('  ✓ §154 present; FY2026-27 carried forward (Batch 2 pending), FY2027-28 still [PLACEHOLDER].');
 
   console.log('✓ All Section 154 tests passed. (6 assertions)');
 }
@@ -1521,14 +1530,14 @@ function testSection154A() {
   assert.ok(section154A_2026 !== undefined, '154A must exist in FY2026-27 registry');
   assert.ok(section154A_2027 !== undefined, '154A must exist in FY2027-28 registry');
   assert.ok(
-    section154A_2026!.rules.every((r) => r.rateLabel.includes('[PLACEHOLDER]')),
-    'FY2026-27 §154A rules must be marked [PLACEHOLDER] pending Finance Act 2026'
+    section154A_2026!.rules.every((r) => !r.rateLabel.includes('[PLACEHOLDER]')),
+    'FY2026-27 §154A rules must NOT be [PLACEHOLDER] — carried forward from fy2026 (Batch 2 Div IV mapping pending)'
   );
   assert.ok(
     section154A_2027!.rules.every((r) => r.rateLabel.includes('[PLACEHOLDER]')),
     'FY2027-28 §154A rules must be marked [PLACEHOLDER] pending Finance Act 2027'
   );
-  console.log('  ✓ FY2026-27 / FY2027-28 §154A present and marked [PLACEHOLDER].');
+  console.log('  ✓ §154A present; FY2026-27 carried forward (Batch 2 pending), FY2027-28 still [PLACEHOLDER].');
 
   console.log('✓ All Section 154A tests passed. (6 assertions)');
 }
@@ -1574,14 +1583,14 @@ function testSection148() {
   assert.ok(section148_2026 !== undefined, '148 must exist in FY2026-27 registry');
   assert.ok(section148_2027 !== undefined, '148 must exist in FY2027-28 registry');
   assert.ok(
-    section148_2026!.rules.every((r) => r.rateLabel.includes('[PLACEHOLDER]')),
-    'FY2026-27 §148 rules must be marked [PLACEHOLDER] pending Finance Act 2026'
+    section148_2026!.rules.every((r) => !r.rateLabel.includes('[PLACEHOLDER]')),
+    'FY2026-27 §148 rules must NOT be [PLACEHOLDER] — carried forward & reviewed vs Finance Act 2026 (Batch 1)'
   );
   assert.ok(
     section148_2027!.rules.every((r) => r.rateLabel.includes('[PLACEHOLDER]')),
     'FY2027-28 §148 rules must be marked [PLACEHOLDER] pending Finance Act 2027'
   );
-  console.log('  ✓ FY2026-27 / FY2027-28 §148 present and marked [PLACEHOLDER].');
+  console.log('  ✓ §148 present; FY2026-27 reviewed (Batch 1), FY2027-28 still [PLACEHOLDER].');
 
   console.log(`✓ All Section 148 tests passed. (${cases.length * 2 + 2} assertions)`);
 }
@@ -1619,14 +1628,14 @@ function testSection152() {
   assert.ok(section152_2026 !== undefined, '152 must exist in FY2026-27 registry');
   assert.ok(section152_2027 !== undefined, '152 must exist in FY2027-28 registry');
   assert.ok(
-    section152_2026!.rules.every((r) => r.rateLabel.includes('[PLACEHOLDER]')),
-    'FY2026-27 §152 rules must be marked [PLACEHOLDER] pending Finance Act 2026'
+    section152_2026!.rules.every((r) => !r.rateLabel.includes('[PLACEHOLDER]')),
+    'FY2026-27 §152 rules must NOT be [PLACEHOLDER] — full structure carried forward from fy2026 (Batch 2 Div II mapping pending)'
   );
   assert.ok(
     section152_2027!.rules.every((r) => r.rateLabel.includes('[PLACEHOLDER]')),
     'FY2027-28 §152 rules must be marked [PLACEHOLDER] pending Finance Act 2027'
   );
-  console.log('  ✓ FY2026-27 / FY2027-28 §152 present and marked [PLACEHOLDER].');
+  console.log('  ✓ §152 present; FY2026-27 carried forward (Batch 2 pending), FY2027-28 still [PLACEHOLDER].');
 
   console.log(`✓ All Section 152 tests passed. (${cases.length * 2 + 2} assertions)`);
 }
@@ -2138,6 +2147,506 @@ function testExplanationFrequencyDivisor() {
   console.log('✓ All explanation frequency-divisor tests passed.');
 }
 
+// ============================================================================
+// BATCH 1 — Finance Act 2026 (Tax Year 2026-27) enacted-value verification.
+// Every assertion forces financeActYear: 2026 (fy2027.ts) and checks the
+// enacted Finance Act 2026 deltas plus the carry-forward sections. Cross-checked
+// against docs/FY2027_FINANCE_ACT_IMPLEMENTATION_REPORT.md and the enacted Act.
+// ============================================================================
+function testBatch1FinanceAct2026() {
+  console.log('\n29. Testing Batch 1 — Finance Act 2026 enacted values (FY2026-27)...');
+
+  const wht = (sectionCode: string, sectionSpecific: Record<string, unknown>) =>
+    computeWht({ sectionCode, financeActYear: 2026, sectionSpecific });
+
+  // ── §149 Salary — enacted 8-band slab table (1/11/20/25/29/32/35%) ──────────
+  // Annual 2,400,000: 6,000 + 110,000 + 40,000 = 156,000.
+  const sal = wht('149', { monthlySalary: 200000, frequency: 'MONTHLY', taxpayerType: 'INDIVIDUAL' });
+  assert.deepStrictEqual(sal.whtAmountAnnual, new Decimal(156000), '§149 FA2026: 2.4M → 156,000');
+  assert.strictEqual(sal.slabBreakdown?.length, 8, '§149 FA2026: 8 enacted bands');
+  // Boundary at the new 2.2M break: annual 3,200,000 →
+  // 6,000 + 110,000 + (1,000,000×20%)=200,000 = 316,000.
+  const salMid = wht('149', { monthlySalary: 3200000 / 12, frequency: 'MONTHLY', taxpayerType: 'INDIVIDUAL' });
+  assert.deepStrictEqual(salMid.whtAmountAnnual, new Decimal(316000), '§149 FA2026: 3.2M → 316,000');
+  // Top band: annual 8,000,000 → 1,424,000 + (1,000,000×35%) = 1,774,000.
+  const salTop = wht('149', { monthlySalary: 8000000 / 12, frequency: 'MONTHLY', taxpayerType: 'INDIVIDUAL' });
+  assert.deepStrictEqual(salTop.whtAmountAnnual, new Decimal(1774000), '§149 FA2026: 8M → 1,774,000');
+  // s.4AB 9% surcharge REPEALED: high earner must NOT carry a surcharge suffix.
+  assert.ok(!salTop.rateLabel.includes('Surcharge'), '§149 FA2026: 9% surcharge repealed (no surcharge suffix)');
+  console.log('  ✓ §149 enacted slabs (156k/316k/1,774k boundaries) and surcharge repeal verified.');
+
+  // ── §149 Pension >10M age<70 — 5% on excess, NO surcharge (s.4AB repealed) ──
+  // Annual 15,000,000 → excess 5,000,000 × 5% = 250,000 (was 275,000 with surcharge).
+  const pension = wht('149', { monthlySalary: 1250000, frequency: 'MONTHLY', taxpayerType: 'INDIVIDUAL', subType: 'PENSION', pensionerAge: 60 });
+  assert.deepStrictEqual(pension.whtAmountAnnual, new Decimal(250000), '§149 FA2026 pension 15M age 60 → 250,000 (no surcharge)');
+  console.log('  ✓ §149 pension >10M age<70 → 5% on excess, surcharge dropped (250,000).');
+
+  // ── §153b Services — enacted Division III restructure ───────────────────────
+  const svc = (subType: string, atl: string, rate: number) => {
+    const r = wht('153b', { paymentAmount: 1000000, subType, atlStatus: atl, taxpayerType: 'COMPANY' });
+    assert.strictEqual(r.rate, rate, `§153b ${subType}/${atl} = ${rate}%`);
+  };
+  svc('SPECIFIED', 'ATL', 7);          svc('SPECIFIED', 'NON_ATL', 14);     // 6→7 [Div III(2)(i)]
+  svc('PROFESSIONALS', 'ATL', 15);     svc('PROFESSIONALS', 'NON_ATL', 30); // NEW [Div III(2)(ii)]
+  svc('PRINT_MEDIA', 'ATL', 1.5);                                            // re-confirmed [Div III(2)(iii)]
+  svc('TERMINAL_PORT', 'ATL', 12);     svc('TERMINAL_PORT', 'NON_ATL', 24); // NEW [Div III(2)(iv)]
+  svc('OTHER_SERVICES', 'ATL', 14);    svc('OTHER_SERVICES', 'NON_ATL', 28);// 15→14 residual [Div III(2)(v)]
+  svc('IT_ITES', 'ATL', 4);                                                  // carried forward
+  console.log('  ✓ §153b restructure: SPECIFIED 7, PROFESSIONALS 15, TERMINAL_PORT 12, OTHER 14, IT/ITeS 4.');
+
+  // ── §153c Sportspersons — Moore TY2027 15/30 (controlled 1 July release) ─────
+  const sport = wht('153c', { paymentAmount: 1000000, subType: 'SPORTSPERSON', atlStatus: 'ATL', taxpayerType: 'INDIVIDUAL' });
+  assert.strictEqual(sport.rate, 15, '§153c Sportsperson ATL = 15% [Moore TY2027]');
+  const sportNon = wht('153c', { paymentAmount: 1000000, subType: 'SPORTSPERSON', atlStatus: 'NON_ATL', taxpayerType: 'INDIVIDUAL' });
+  assert.strictEqual(sportNon.rate, 30, '§153c Sportsperson Non-ATL = 30% [Moore TY2027]');
+  // Standard contracts carried forward unchanged (7.5/15 Company, 8/16 Individual).
+  const stdCo = wht('153c', { paymentAmount: 1000000, subType: 'STANDARD', atlStatus: 'ATL', taxpayerType: 'COMPANY' });
+  assert.strictEqual(stdCo.rate, 7.5, '§153c Standard Company ATL carried = 7.5%');
+  console.log('  ✓ §153c sportsperson 15/30 (Moore TY2027, 1 July release); standard contracts carried forward.');
+
+  // ── §236C — enacted flat 2.75% ATL; Non-ATL 11.5% unchanged from FY2025-26 ──
+  const saleAtl = wht('236C', { propertyValue: 80_000_000, atlStatus: 'ATL' });
+  assert.strictEqual(saleAtl.rate, 2.75, '§236C FA2026 ATL = 2.75% flat');
+  assert.deepStrictEqual(saleAtl.whtAmountPerPeriod, new Decimal(2_200_000), '§236C 80M × 2.75% = 2,200,000');
+  const saleNon = wht('236C', { propertyValue: 80_000_000, atlStatus: 'NON_ATL' });
+  assert.strictEqual(saleNon.rate, 11.5, '§236C FA2026 Non-ATL = 11.5% (unchanged from FY2025-26, HOTFIX-002)');
+  const sale236C = RATE_REGISTRY[2026].sections.find((s) => s.code === '236C')!;
+  assert.strictEqual(sale236C.rules.length, 2, '§236C FY2026-27: 2 flat rules (ATL flat + Non-ATL flat, no FMV bands)');
+  assert.ok(!sale236C.transactionFields.find((f) => f.key === 'atlStatus')!.options!.some((o) => o.value === 'LATE_FILER'),
+    '§236C FY2026-27: Late Filer option removed');
+  console.log('  ✓ §236C flat 2.75% ATL / 11.5% Non-ATL, FMV banding (Filer) + Late Filer removed.');
+
+  // ── §236K — enacted flat 1.25% ATL; Non-ATL FMV-banded, unchanged from FY2025-26 ──
+  const buyAtl = wht('236K', { propertyValue: 80_000_000, atlStatus: 'ATL' });
+  assert.strictEqual(buyAtl.rate, 1.25, '§236K FA2026 ATL = 1.25% flat');
+  assert.deepStrictEqual(buyAtl.whtAmountPerPeriod, new Decimal(1_000_000), '§236K 80M × 1.25% = 1,000,000');
+  const buyNon = wht('236K', { propertyValue: 80_000_000, atlStatus: 'NON_ATL' });
+  assert.strictEqual(buyNon.rate, 14.5, '§236K FA2026 Non-ATL @80M (50M-100M band) = 14.5% (unchanged from FY2025-26, HOTFIX-002)');
+  const buy236K = RATE_REGISTRY[2026].sections.find((s) => s.code === '236K')!;
+  assert.strictEqual(buy236K.rules.length, 4, '§236K FY2026-27: 4 rules (ATL flat + 3 Non-ATL FMV bands)');
+  assert.ok(!buy236K.transactionFields.find((f) => f.key === 'atlStatus')!.options!.some((o) => o.value === 'LATE_FILER'),
+    '§236K FY2026-27: Late Filer option removed');
+  console.log('  ✓ §236K flat 1.25% ATL / FMV-banded Non-ATL (10.5/14.5/18.5), Late Filer removed.');
+
+  // ── Carry-forward sanity: §151 Bank 20/40 + Sukuk preserved; §150 unchanged ──
+  const bank = wht('151', { profitAmount: 1000000, subType: 'BANK', atlStatus: 'ATL', taxpayerType: 'COMPANY' });
+  assert.strictEqual(bank.rate, 20, '§151 Bank ATL carried forward = 20% (not the discarded 15% placeholder)');
+  const sukuk = wht('151', { profitAmount: 2000000, subType: 'SUKUK', atlStatus: 'ATL', taxpayerType: 'COMPANY' });
+  assert.strictEqual(sukuk.rate, 25, '§151 Sukuk Company carried forward = 25% (not deleted)');
+  const div = wht('150', { dividendAmount: 1000000, subType: 'GENERAL', atlStatus: 'ATL' });
+  assert.strictEqual(div.rate, 15, '§150 General dividend carried forward = 15%');
+  const div150 = RATE_REGISTRY[2026].sections.find((s) => s.code === '150')!;
+  assert.ok(!div150.rules.some((r) => r.subType === 'BONUS_SHARES'), '§150 FY2026-27: no BONUS_SHARES (not enacted)');
+  console.log('  ✓ Carry-forward: §151 Bank 20/Sukuk 25 preserved; §150 unchanged, no Bonus Shares.');
+
+  // ── §155 carried forward: top slab stays 25% (not the discarded 15%) ─────────
+  const rent = wht('155', { rentAmount: 3000000, frequency: 'ANNUALLY', atlStatus: 'ATL', taxpayerType: 'INDIVIDUAL' });
+  // 0–300k:0 | 300k–600k:15,000 | 600k–2M:140,000 | 2M–3M:250,000 = 405,000
+  assert.deepStrictEqual(rent.whtAmountAnnual, new Decimal(405000), '§155 carried forward: 3M → 405,000 (top slab 25%)');
+  console.log('  ✓ §155 carried forward: Individual top slab 25% preserved (3M → 405,000).');
+
+  console.log('✓ All Batch 1 Finance Act 2026 enacted-value tests passed.');
+}
+
+// ============================================================================
+// HOTFIX-001 — Hidden tax-year guard. Proves the initial active year is always
+// resolved over VISIBLE_TAX_YEARS, so a hidden (not-yet-enabled) year can never
+// become the default even after its 1-July boundary passes.
+// ============================================================================
+function testHotfix001HiddenYearGuard() {
+  console.log('\n30. Testing HOTFIX-001 — hidden tax-year guard...');
+
+  const afterJul2026 = new Date('2026-07-01'); // first day FY2026-27 is the natural active year
+  const wellAfter   = new Date('2027-03-15');  // deep inside FY2026-27
+  const beforeJul2026 = new Date('2026-06-29'); // FY2025-26 still active
+
+  // Scenario A — VISIBLE = [2025], date ≥ 1 Jul 2026 → active year must be 2025
+  // (the date-derived natural year 2026 is hidden → fall back to latest visible).
+  assert.strictEqual(getDefaultVisibleTaxYear([2025], afterJul2026), 2025,
+    'Scenario A: hidden 2026 must fall back to latest visible 2025');
+  assert.strictEqual(getDefaultVisibleTaxYear([2025], wellAfter), 2025,
+    'Scenario A: still 2025 deep inside FY2026-27');
+  console.log('  ✓ Scenario A: VISIBLE=[2025], date ≥ 2026-07-01 → 2025.');
+
+  // Scenario B — VISIBLE = [2025, 2026], date ≥ 1 Jul 2026 → active year = 2026
+  // (the natural year is now visible, so it is selected directly).
+  assert.strictEqual(getDefaultVisibleTaxYear([2025, 2026], afterJul2026), 2026,
+    'Scenario B: 2026 visible → selected directly');
+  console.log('  ✓ Scenario B: VISIBLE=[2025,2026], date ≥ 2026-07-01 → 2026.');
+
+  // Scenario C — page refresh / reload while FY2027 is hidden. The resolver is
+  // pure and has no persisted/URL state, so repeated calls (a remount) are
+  // idempotent and continue to return 2025.
+  const reload1 = getDefaultVisibleTaxYear([2025], afterJul2026);
+  const reload2 = getDefaultVisibleTaxYear([2025], afterJul2026);
+  const reload3 = getDefaultVisibleTaxYear([2025], wellAfter);
+  assert.strictEqual(reload1, 2025);
+  assert.strictEqual(reload2, 2025);
+  assert.strictEqual(reload3, 2025);
+  assert.strictEqual(reload1, reload2, 'Scenario C: reload is idempotent');
+  console.log('  ✓ Scenario C: refresh/reload while FY2027 hidden → remains 2025 (idempotent).');
+
+  // Production guarantee — using the REAL exported VISIBLE_TAX_YEARS constant.
+  // Whatever the system date, the default must always be a member of it.
+  for (const d of [beforeJul2026, afterJul2026, wellAfter, new Date('2028-12-01')]) {
+    const y = getDefaultVisibleTaxYear(VISIBLE_TAX_YEARS, d);
+    assert.ok(y !== null && VISIBLE_TAX_YEARS.includes(y),
+      `Production guard: default ${y} must be within VISIBLE_TAX_YEARS for date ${d.toISOString().slice(0, 10)}`);
+  }
+  // LOCAL TESTING config: VISIBLE_TAX_YEARS now includes 2026 as well, so the
+  // default resolver is exercised against the real constant under the dual-year
+  // setup. The clamp invariant (default ∈ VISIBLE_TAX_YEARS) is the guarantee;
+  // the pure-function fallback-to-latest-visible behaviour is proven by the
+  // literal Scenario A/B above and remains intact regardless of the constant.
+  assert.ok(VISIBLE_TAX_YEARS.includes(2025) && VISIBLE_TAX_YEARS.includes(2026),
+    'Local testing: both FY2025-26 and FY2026-27 are visible');
+  assert.ok(getDefaultVisibleTaxYear(VISIBLE_TAX_YEARS, afterJul2026) !== null
+    && VISIBLE_TAX_YEARS.includes(getDefaultVisibleTaxYear(VISIBLE_TAX_YEARS, afterJul2026)!),
+    'Production guard: real constant default always within VISIBLE_TAX_YEARS');
+  console.log('  ✓ Guard invariant holds under the dual-year (2025, 2026) local-testing config.');
+
+  // Edge — empty visible list returns null (caller surfaces "no data").
+  assert.strictEqual(getDefaultVisibleTaxYear([], afterJul2026), null,
+    'Edge: empty visible-year list → null');
+  console.log('  ✓ Edge: empty VISIBLE_TAX_YEARS → null.');
+
+  console.log('✓ All HOTFIX-001 hidden tax-year guard tests passed.');
+}
+
+// ============================================================================
+// BATCH 2 — Finance Act 2026 new sections (§151B, §154B) + resolved mappings
+// (§152 1DA, §154 Div IV, §154A sunset) + carry-forward re-verification.
+// All assertions force financeActYear: 2026 (fy2027.ts).
+// ============================================================================
+function testBatch2FinanceAct2026() {
+  console.log('\n31. Testing Batch 2 — Finance Act 2026 new sections & mappings (FY2026-27)...');
+
+  const wht = (sectionCode: string, sectionSpecific: Record<string, unknown>) =>
+    computeWht({ sectionCode, financeActYear: 2026, sectionSpecific });
+
+  // ── §151B — life-insurance / takaful payouts (base = payout − premiums) ─────
+  // Payout 1,000,000, premiums 400,000 → taxable base 600,000.
+  const within1y = wht('151B', { payoutAmount: 1_000_000, premiumsPaid: 400_000, subType: 'WITHIN_1Y' });
+  assert.strictEqual(within1y.rate, 15, '§151B within-1yr = 15%');
+  assert.deepStrictEqual(within1y.whtAmountPerPeriod, new Decimal(90_000), '§151B 15% × (1,000,000 − 400,000) = 90,000');
+  assert.deepStrictEqual(within1y.netAmountPerPeriod, new Decimal(910_000), '§151B net = 1,000,000 − 90,000');
+  assert.ok(within1y.explanation.includes('600,000') && within1y.explanation.includes('Final Tax'),
+    '§151B explanation shows the net-of-premiums base and final-tax treatment');
+
+  const band2 = wht('151B', { payoutAmount: 1_000_000, premiumsPaid: 400_000, subType: 'AFTER_1Y_BEFORE_4Y' });
+  assert.strictEqual(band2.rate, 10, '§151B 1–4yr = 10%');
+  assert.deepStrictEqual(band2.whtAmountPerPeriod, new Decimal(60_000), '§151B 10% × 600,000 = 60,000');
+
+  const exempt = wht('151B', { payoutAmount: 1_000_000, premiumsPaid: 400_000, subType: 'EXEMPT_4Y_DEATH_DISAB' });
+  assert.strictEqual(exempt.rate, 0, '§151B after-4yr/death/disability = exempt 0%');
+  assert.deepStrictEqual(exempt.whtAmountPerPeriod, new Decimal(0), '§151B exempt → 0 tax');
+
+  // Premiums exceeding payout → taxable base floored at 0.
+  const noGain = wht('151B', { payoutAmount: 500_000, premiumsPaid: 800_000, subType: 'WITHIN_1Y' });
+  assert.deepStrictEqual(noGain.whtAmountPerPeriod, new Decimal(0), '§151B base floored at 0 when premiums > payout');
+  console.log('  ✓ §151B: 15%/10% on (payout − premiums), exempt band, and zero-base floor verified.');
+
+  // ── §154B — social-media revenue (flat 5%, minimum vs final) ────────────────
+  const resident = wht('154B', { revenueAmount: 1_000_000, subType: 'RESIDENT' });
+  assert.strictEqual(resident.rate, 5, '§154B resident = 5%');
+  assert.deepStrictEqual(resident.whtAmountPerPeriod, new Decimal(50_000), '§154B 1,000,000 × 5% = 50,000');
+  assert.ok(resident.rateLabel.includes('Minimum'), '§154B resident → Minimum Tax label');
+  const nonResident = wht('154B', { revenueAmount: 1_000_000, subType: 'NON_RESIDENT_NO_PE' });
+  assert.strictEqual(nonResident.rate, 5, '§154B non-resident = 5%');
+  assert.ok(nonResident.rateLabel.includes('Final'), '§154B non-resident-no-PE → Final Tax label');
+  console.log('  ✓ §154B: flat 5%, minimum (resident) / final (non-resident-no-PE).');
+
+  // ── §152(1DA) — FCVA/FCBVA/NRVA/NRBVA capital gain, Div II rate unchanged 10% ─
+  const gain1da = wht('152', { paymentAmount: 1_000_000, subType: 'OTHER_SECURITIES_GAIN', atlStatus: 'ATL', taxpayerType: 'COMPANY' });
+  assert.strictEqual(gain1da.rate, 10, '§152(1DA) Div II rate carried forward = 10%');
+  assert.ok(gain1da.rateLabel.includes('FCVA') && gain1da.rateLabel.includes('152(1DA)'),
+    '§152(1DA) rateLabel reflects the amended FCVA/account-based wording');
+  console.log('  ✓ §152(1DA): Division II rate unchanged (10%), relabelled to FCVA channel.');
+
+  // ── §154 — Moore-aligned: §154 withholding ONLY at 1.25% (§147 removed) ──────
+  const exp = wht('154', { exportProceeds: 1_000_000, subType: 'STANDARD_EXPORT' });
+  assert.strictEqual(exp.rate, 1.25, '§154 STANDARD_EXPORT = 1.25% (§154 only; §147 component removed)');
+  assert.deepStrictEqual(exp.whtAmountPerPeriod, new Decimal(12_500), '§154 1,000,000 × 1.25% = 12,500');
+  assert.ok(!exp.rateLabel.includes('147') && !exp.rateLabel.includes('2.25'), '§154 label no longer references §147 or 2.25%');
+  const afghan = wht('154', { exportProceeds: 1_000_000, subType: 'AFGHAN_COOKING_OIL' });
+  assert.strictEqual(afghan.rate, 0, '§154 Afghan cooking-oil unchanged 0%');
+  console.log('  ✓ §154: STANDARD_EXPORT 1.25% (§147 removed); Afghan 0% unchanged.');
+
+  // ── §154A — Moore-aligned: single flat rates, no Non-ATL doubling ────────────
+  const pseb = wht('154A', { serviceProceeds: 1_000_000, subType: 'PSEB_IT_ITES' });
+  assert.strictEqual(pseb.rate, 0.25, '§154A PSEB = 0.25% (single flat rate)');
+  const otherA = wht('154A', { serviceProceeds: 1_000_000, subType: 'OTHER_SERVICES' });
+  assert.strictEqual(otherA.rate, 1, '§154A other services = 1% (single flat rate)');
+  // No Non-ATL doubling: supplying atlStatus must not change the rate.
+  const psebNon = wht('154A', { serviceProceeds: 1_000_000, subType: 'PSEB_IT_ITES', atlStatus: 'NON_ATL' });
+  assert.strictEqual(psebNon.rate, 0.25, '§154A PSEB has no Non-ATL doubling (stays 0.25%)');
+  const section154A_2026 = RATE_REGISTRY[2026].sections.find((s) => s.code === '154A')!;
+  assert.ok(!section154A_2026.transactionFields.some((f) => f.key === 'atlStatus'), '§154A FY2026-27: atlStatus field removed (no filer split)');
+  assert.strictEqual(section154A_2026.rules.length, 2, '§154A FY2026-27: 2 single flat rules (no ATL/Non-ATL pairs)');
+  console.log('  ✓ §154A: single flat rates (0.25% / 1%), Non-ATL doubling removed.');
+
+  // ── Carry-forward re-verification: §153a, §155 unchanged ────────────────────
+  const goods = wht('153a', { paymentAmount: 1_000_000, subType: 'OTHER_GOODS', atlStatus: 'ATL', taxpayerType: 'COMPANY' });
+  assert.strictEqual(goods.rate, 5, '§153a OTHER_GOODS Company ATL re-verified = 5%');
+  const rent = wht('155', { rentAmount: 3_000_000, frequency: 'ANNUALLY', atlStatus: 'ATL', taxpayerType: 'INDIVIDUAL' });
+  assert.deepStrictEqual(rent.whtAmountAnnual, new Decimal(405_000), '§155 re-verified: 3M → 405,000 (top slab 25%)');
+  console.log('  ✓ §153a / §155: re-verified unchanged (COMPLETE).');
+
+  // ── New sections present & well-formed in the FY2026-27 registry ────────────
+  const fy = RATE_REGISTRY[2026];
+  for (const code of ['151B', '154B']) {
+    const s = fy.sections.find((x) => x.code === code);
+    assert.ok(s !== undefined, `§${code} must exist in FY2026-27 registry`);
+    assert.ok(s!.rules.every((r) => !r.rateLabel.includes('[PLACEHOLDER]')), `§${code} must not be [PLACEHOLDER]`);
+  }
+  // §151B and §154B live in the FY2026-27 config, which is exposed for LOCAL
+  // testing (VISIBLE_TAX_YEARS includes 2026); FBR-card reconciliation pending.
+  assert.ok(VISIBLE_TAX_YEARS.includes(2026), 'FY2026-27 (incl. new §151B/§154B) exposed for local testing');
+  console.log('  ✓ §151B / §154B present in FY2026-27 registry, well-formed, and locally visible.');
+
+  console.log('✓ All Batch 2 Finance Act 2026 tests passed.');
+}
+
+// ============================================================================
+// BATCH 3 — Full TY2026-27 validation sweep: every section computes at
+// financeActYear 2026; boundary / exemption / Non-ATL / invalid-input cases;
+// cross-year isolation (FY2025-26 unchanged, FY2026-27 isolated); and
+// explanation-content validation.
+// ============================================================================
+function testBatch3ValidationFY2027() {
+  console.log('\n32. Testing Batch 3 — full TY2026-27 validation sweep...');
+
+  const wht = (sectionCode: string, sectionSpecific: Record<string, unknown>) =>
+    computeWht({ sectionCode, financeActYear: 2026, sectionSpecific });
+
+  // ── A. All-section sweep (every code computes; representative rate) ──────────
+  // Flat-rate sections: assert resolved rate. Slab sections (149) checked below.
+  const flat: Array<{ code: string; input: Record<string, unknown>; rate: number }> = [
+    { code: '148',  input: { importValue: 1_000_000, subType: 'TWELFTH_SCH_PART_I', atlStatus: 'ATL' }, rate: 1 },
+    { code: '150',  input: { dividendAmount: 1_000_000, subType: 'GENERAL', atlStatus: 'ATL' }, rate: 15 },
+    { code: '151',  input: { profitAmount: 1_000_000, subType: 'BANK', atlStatus: 'ATL', taxpayerType: 'COMPANY' }, rate: 20 },
+    { code: '151B', input: { payoutAmount: 1_000_000, premiumsPaid: 400_000, subType: 'WITHIN_1Y' }, rate: 15 },
+    { code: '152',  input: { paymentAmount: 1_000_000, subType: 'ROYALTY_FTS', atlStatus: 'ATL', taxpayerType: 'COMPANY' }, rate: 15 },
+    { code: '153a', input: { paymentAmount: 100_000, subType: 'OTHER_GOODS', atlStatus: 'ATL', taxpayerType: 'COMPANY' }, rate: 5 },
+    { code: '153b', input: { paymentAmount: 100_000, subType: 'SPECIFIED', atlStatus: 'ATL', taxpayerType: 'COMPANY' }, rate: 7 },
+    { code: '153c', input: { paymentAmount: 1_000_000, subType: 'STANDARD', atlStatus: 'ATL', taxpayerType: 'COMPANY' }, rate: 7.5 },
+    { code: '154',  input: { exportProceeds: 1_000_000, subType: 'STANDARD_EXPORT' }, rate: 1.25 },
+    { code: '154A', input: { serviceProceeds: 1_000_000, subType: 'PSEB_IT_ITES' }, rate: 0.25 },
+    { code: '154B', input: { revenueAmount: 1_000_000, subType: 'RESIDENT' }, rate: 5 },
+    { code: '155',  input: { rentAmount: 1_000_000, frequency: 'ANNUALLY', atlStatus: 'ATL', taxpayerType: 'COMPANY' }, rate: 15 },
+    { code: '156',  input: { prizeAmount: 100_000, subType: 'PRIZE_BOND', atlStatus: 'ATL' }, rate: 15 },
+    { code: '233',  input: { commissionAmount: 100_000, subType: 'ADVERTISING_AGENT', atlStatus: 'ATL' }, rate: 10 },
+    { code: '236C', input: { propertyValue: 80_000_000, atlStatus: 'ATL' }, rate: 2.75 },
+    { code: '236K', input: { propertyValue: 80_000_000, atlStatus: 'ATL' }, rate: 1.25 },
+    { code: '6a',   input: { paymentAmount: 1_000_000, subType: 'DIGITAL_PAYMENT', atlStatus: 'ATL' }, rate: 1 },
+  ];
+  for (const c of flat) {
+    const r = wht(c.code, c.input);
+    assert.strictEqual(r.applicable, true, `sweep §${c.code} must be applicable`);
+    assert.strictEqual(r.rate, c.rate, `sweep §${c.code} rate = ${c.rate}%`);
+    assert.strictEqual(r.financeActYear, 2026, `sweep §${c.code} resolves FY2026-27`);
+  }
+  // §149 (slab section) — distinct check.
+  const s149 = wht('149', { monthlySalary: 200_000, frequency: 'MONTHLY', taxpayerType: 'INDIVIDUAL' });
+  assert.ok(s149.applicable && s149.isProgressiveSlab, 'sweep §149 applicable + progressive slabs');
+  // All 18 FY2026-27 sections are represented (17 flat + §149).
+  assert.strictEqual(RATE_REGISTRY[2026].sections.length, 18, 'FY2026-27 has all 18 sections');
+  console.log('  ✓ A. All 18 FY2026-27 sections compute with expected representative rates.');
+
+  // ── B. Boundary / threshold transitions ─────────────────────────────────────
+  // §153a goods threshold Rs 75,000: 74,999 exempt, 75,000+ applies.
+  assert.strictEqual(wht('153a', { paymentAmount: 74_999, subType: 'OTHER_GOODS', atlStatus: 'ATL', taxpayerType: 'COMPANY' }).applicable, false, 'B §153a below 75k → exempt');
+  assert.strictEqual(wht('153a', { paymentAmount: 75_000, subType: 'OTHER_GOODS', atlStatus: 'ATL', taxpayerType: 'COMPANY' }).applicable, true, 'B §153a at 75k → applies');
+  // §153b services threshold Rs 30,000.
+  assert.strictEqual(wht('153b', { paymentAmount: 29_999, subType: 'SPECIFIED', atlStatus: 'ATL', taxpayerType: 'COMPANY' }).applicable, false, 'B §153b below 30k → exempt');
+  // §149 slab boundaries (FY2027): 600k → 0; 7,000,001 top band.
+  assert.deepStrictEqual(wht('149', { monthlySalary: 600_000 / 12, frequency: 'MONTHLY', taxpayerType: 'INDIVIDUAL' }).whtAmountAnnual, new Decimal(0), 'B §149 600k → 0');
+  // 7,000,001 → 1,424,000 + 1×35% ≈ 1,424,000.
+  assert.deepStrictEqual(wht('149', { monthlySalary: 7_000_001 / 12, frequency: 'MONTHLY', taxpayerType: 'INDIVIDUAL' }).whtAmountAnnual, new Decimal(1_424_000), 'B §149 7,000,001 → 1,424,000');
+  console.log('  ✓ B. Threshold transitions (§153a/§153b) and §149 slab boundaries.');
+
+  // ── C. Zero / exemption scenarios ───────────────────────────────────────────
+  assert.strictEqual(wht('151B', { payoutAmount: 1_000_000, premiumsPaid: 0, subType: 'EXEMPT_4Y_DEATH_DISAB' }).rate, 0, 'C §151B after-4yr/death/disability exempt');
+  assert.strictEqual(wht('154', { exportProceeds: 1_000_000, subType: 'AFGHAN_COOKING_OIL' }).rate, 0, 'C §154 Afghan cooking-oil 0%');
+  assert.deepStrictEqual(wht('151B', { payoutAmount: 500_000, premiumsPaid: 900_000, subType: 'WITHIN_1Y' }).whtAmountPerPeriod, new Decimal(0), 'C §151B premiums>payout → 0');
+  console.log('  ✓ C. Exemption / zero-value scenarios.');
+
+  // ── D. Non-ATL calculations ─────────────────────────────────────────────────
+  assert.strictEqual(wht('236C', { propertyValue: 80_000_000, atlStatus: 'NON_ATL' }).rate, 11.5, 'D §236C Non-ATL = 11.5%');
+  assert.strictEqual(wht('236K', { propertyValue: 80_000_000, atlStatus: 'NON_ATL' }).rate, 14.5, 'D §236K Non-ATL @80M = 14.5%');
+  assert.strictEqual(wht('153b', { paymentAmount: 100_000, subType: 'OTHER_SERVICES', atlStatus: 'NON_ATL', taxpayerType: 'COMPANY' }).rate, 28, 'D §153b OTHER Non-ATL = 28%');
+  // §155 Individual Non-ATL doubling (Rule 1 Tenth Sch): ATL 1M → 55,000; Non-ATL → 110,000.
+  assert.deepStrictEqual(wht('155', { rentAmount: 1_000_000, frequency: 'ANNUALLY', atlStatus: 'NON_ATL', taxpayerType: 'INDIVIDUAL' }).whtAmountAnnual, new Decimal(110_000), 'D §155 Non-ATL Individual doubled = 110,000');
+  console.log('  ✓ D. Non-ATL rates and §155 doubling.');
+
+  // ── E. Invalid combinations must throw (defensive) ──────────────────────────
+  assert.throws(() => wht('236C', { propertyValue: 80_000_000 /* atlStatus missing */ }), /required/i, 'E missing required atlStatus throws');
+  assert.throws(() => wht('150', { dividendAmount: 1_000_000, subType: 'NONSENSE', atlStatus: 'ATL' }), /No matching/i, 'E invalid subType throws');
+  assert.throws(() => wht('153a', { paymentAmount: -5, subType: 'OTHER_GOODS', atlStatus: 'ATL', taxpayerType: 'COMPANY' }), /positive number/i, 'E negative amount throws');
+  console.log('  ✓ E. Invalid inputs (missing field / bad subType / non-positive amount) rejected.');
+
+  // ── F. Cross-year isolation (FY2025-26 unchanged, FY2026-27 isolated) ────────
+  const sweep25 = (code: string, ss: Record<string, unknown>) => computeWht({ sectionCode: code, financeActYear: 2025, sectionSpecific: ss });
+  // §149: same salary, different enacted slabs per year. FY2025-26 (fy2026.ts)
+  // 2.4M → 6,000 + (1M×11%)=110,000 + (200k×23%)=46,000 = 162,000.
+  assert.deepStrictEqual(sweep25('149', { monthlySalary: 200_000, frequency: 'MONTHLY', taxpayerType: 'INDIVIDUAL' }).whtAmountAnnual, new Decimal(162_000), 'F FY2025-26 §149 200k → 162,000 (unchanged)');
+  assert.deepStrictEqual(wht('149', { monthlySalary: 200_000, frequency: 'MONTHLY', taxpayerType: 'INDIVIDUAL' }).whtAmountAnnual, new Decimal(156_000), 'F FY2026-27 §149 200k → 156,000 (isolated)');
+  // §153b SPECIFIED: 6% (2025) vs 7% (2026).
+  assert.strictEqual(sweep25('153b', { paymentAmount: 100_000, subType: 'SPECIFIED', atlStatus: 'ATL', taxpayerType: 'COMPANY' }).rate, 6, 'F FY2025-26 §153b SPECIFIED 6%');
+  assert.strictEqual(wht('153b', { paymentAmount: 100_000, subType: 'SPECIFIED', atlStatus: 'ATL', taxpayerType: 'COMPANY' }).rate, 7, 'F FY2026-27 §153b SPECIFIED 7%');
+  // §236C: FMV-banded 4.5% (2025, 50M ATL) vs flat 2.75% (2026).
+  assert.strictEqual(sweep25('236C', { propertyValue: 50_000_000, atlStatus: 'ATL' }).rate, 4.5, 'F FY2025-26 §236C FMV-banded 4.5%');
+  assert.strictEqual(wht('236C', { propertyValue: 50_000_000, atlStatus: 'ATL' }).rate, 2.75, 'F FY2026-27 §236C flat 2.75%');
+  console.log('  ✓ F. Cross-year isolation: FY2025-26 unchanged, FY2026-27 distinct.');
+
+  // ── G. Explanation-content validation ───────────────────────────────────────
+  const exp149 = wht('149', { monthlySalary: 200_000, frequency: 'MONTHLY', taxpayerType: 'INDIVIDUAL' }).explanation;
+  assert.ok(exp149.includes('Section 149') && exp149.includes('Progressive Slab Breakdown') && exp149.includes('2026-27'),
+    'G §149 explanation: section ref, slab narrative, tax-year label');
+  const exp236c = wht('236C', { propertyValue: 80_000_000, atlStatus: 'NON_ATL' }).explanation;
+  assert.ok(exp236c.includes('Section 236C') && exp236c.includes('11.5%') && exp236c.includes('Non-ATL'),
+    'G §236C explanation: section ref, Non-ATL rate display');
+  const exp154b = wht('154B', { revenueAmount: 1_000_000, subType: 'NON_RESIDENT_NO_PE' }).explanation;
+  assert.ok(exp154b.includes('Section 154B') && exp154b.includes('Final Tax'),
+    'G §154B explanation: section ref + Final Tax label (non-resident)');
+  const exp154bRes = wht('154B', { revenueAmount: 1_000_000, subType: 'RESIDENT' }).explanation;
+  assert.ok(exp154bRes.includes('Minimum'), 'G §154B explanation: Minimum Tax label (resident)');
+  const exp151b = wht('151B', { payoutAmount: 1_000_000, premiumsPaid: 400_000, subType: 'WITHIN_1Y' }).explanation;
+  assert.ok(exp151b.includes('Section 151B') && exp151b.includes('600,000') && exp151b.includes('Final Tax') && exp151b.includes('Premiums'),
+    'G §151B explanation: net-of-premiums base + final-tax narrative');
+  const exp153c = wht('153c', { paymentAmount: 1_000_000, subType: 'SPORTSPERSON', atlStatus: 'NON_ATL', taxpayerType: 'INDIVIDUAL' }).explanation;
+  assert.ok(exp153c.includes('30%'), 'G §153c sportsperson Non-ATL explanation shows 30%');
+  console.log('  ✓ G. Explanation content: section refs, rate/filer display, final/minimum/exemption narratives.');
+
+  console.log('✓ All Batch 3 TY2026-27 validation tests passed.');
+}
+
+// ============================================================================
+// LOCAL DUAL-YEAR VISIBILITY — proves both FY2025-26 and FY2026-27 are
+// selectable, that each year loads a distinct rule set, that the default-year
+// logic still behaves, and that cross-year calculations differ where expected.
+// ============================================================================
+function testLocalDualYearVisibility() {
+  console.log('\n33. Testing local dual-year visibility (FY2025-26 + FY2026-27)...');
+
+  // 1. Two years appear in the visible list (what the dropdown renders).
+  assert.deepStrictEqual([...VISIBLE_TAX_YEARS].sort((a, b) => a - b), [2025, 2026],
+    'VISIBLE_TAX_YEARS must expose exactly 2025 and 2026');
+  assert.strictEqual(taxYearLabel(2025), '2025-26', 'dropdown label for 2025');
+  assert.strictEqual(taxYearLabel(2026), '2026-27', 'dropdown label for 2026');
+  console.log('  ✓ Dropdown exposes Tax Year 2025-26 and Tax Year 2026-27.');
+
+  // 2. Selecting each year loads a different rule set.
+  const cfg2025 = getConfigByYear(2025); // Tax Year 2025-26 → fy2026.ts
+  const cfg2026 = getConfigByYear(2026); // Tax Year 2026-27 → fy2027.ts
+  assert.strictEqual(cfg2025.financeActYear, 2025, '2025 → fy2026.ts (financeActYear 2025)');
+  assert.strictEqual(cfg2026.financeActYear, 2026, '2026 → fy2027.ts (financeActYear 2026)');
+  assert.strictEqual(cfg2025.sections.length, 16, 'FY2025-26 has 16 sections');
+  assert.strictEqual(cfg2026.sections.length, 18, 'FY2026-27 has 18 sections (incl. §151B, §154B)');
+  // The new sections exist only in the FY2026-27 set.
+  assert.ok(!cfg2025.sections.some((s) => s.code === '151B' || s.code === '154B'), 'FY2025-26 has no §151B/§154B');
+  assert.ok(cfg2026.sections.some((s) => s.code === '151B') && cfg2026.sections.some((s) => s.code === '154B'), 'FY2026-27 has §151B + §154B');
+  console.log('  ✓ Year selection loads distinct rule sets (16 vs 18 sections).');
+
+  // 3. Default-year logic still behaves (HOTFIX-001 resolver, clamped to visible).
+  assert.strictEqual(getDefaultVisibleTaxYear(VISIBLE_TAX_YEARS, new Date('2026-06-29')), 2025,
+    'before 1 Jul 2026 → default 2025');
+  assert.strictEqual(getDefaultVisibleTaxYear(VISIBLE_TAX_YEARS, new Date('2026-07-01')), 2026,
+    'on/after 1 Jul 2026 → default 2026 (now that 2026 is visible)');
+  console.log('  ✓ Default-year logic: 2025 before 1 Jul 2026, 2026 on/after (both now valid).');
+
+  // 4. Cross-year calculations differ where expected (recalculation on switch).
+  const diff = (code: string, ss: Record<string, unknown>) => ({
+    y2025: computeWht({ sectionCode: code, financeActYear: 2025, sectionSpecific: ss }),
+    y2026: computeWht({ sectionCode: code, financeActYear: 2026, sectionSpecific: ss }),
+  });
+  // §149 salary 200k/mo: 162,000 (2025) vs 156,000 (2026).
+  const d149 = diff('149', { monthlySalary: 200_000, frequency: 'MONTHLY', taxpayerType: 'INDIVIDUAL' });
+  assert.deepStrictEqual(d149.y2025.whtAmountAnnual, new Decimal(162_000), '§149 2025 → 162,000');
+  assert.deepStrictEqual(d149.y2026.whtAmountAnnual, new Decimal(156_000), '§149 2026 → 156,000');
+  assert.ok(!d149.y2025.whtAmountAnnual!.equals(d149.y2026.whtAmountAnnual!), '§149 differs across years');
+  // §153b SPECIFIED: 6% (2025) vs 7% (2026).
+  const d153 = diff('153b', { paymentAmount: 100_000, subType: 'SPECIFIED', atlStatus: 'ATL', taxpayerType: 'COMPANY' });
+  assert.strictEqual(d153.y2025.rate, 6, '§153b 2025 → 6%');
+  assert.strictEqual(d153.y2026.rate, 7, '§153b 2026 → 7%');
+  // §236C ATL @50M: 4.5% FMV-banded (2025) vs 2.75% flat (2026).
+  const d236c = diff('236C', { propertyValue: 50_000_000, atlStatus: 'ATL' });
+  assert.strictEqual(d236c.y2025.rate, 4.5, '§236C 2025 → 4.5% (FMV-banded)');
+  assert.strictEqual(d236c.y2026.rate, 2.75, '§236C 2026 → 2.75% (flat)');
+  // §236K ATL @50M: 1.5% FMV-banded (2025) vs 1.25% flat (2026).
+  const d236k = diff('236K', { propertyValue: 50_000_000, atlStatus: 'ATL' });
+  assert.strictEqual(d236k.y2025.rate, 1.5, '§236K 2025 → 1.5% (FMV-banded)');
+  assert.strictEqual(d236k.y2026.rate, 1.25, '§236K 2026 → 1.25% (flat)');
+  console.log('  ✓ Cross-year calcs differ where expected (§149, §153b, §236C, §236K).');
+
+  console.log('✓ All local dual-year visibility tests passed.');
+}
+
+// ============================================================================
+// 34. Moore TY2027-aligned approved changes (FY2026-27 only).
+// Covers the seven approved Moore-alignment items: §149(3) director fee,
+// §150 mutual-fund split, §151 NSS flat 20/40, §152(1C) offshore digital 15%,
+// §153c sportsperson 15/30, §154 §147-component removal, §154A no doubling.
+// (§153c, §154, §154A are additionally asserted in the Batch 1/2 groups above.)
+// ============================================================================
+function testMooreAlignmentFY2027() {
+  console.log('\n34. Testing Moore TY2027-aligned approved changes (FY2026-27)...');
+  const wht = (sectionCode: string, sectionSpecific: Record<string, unknown>) =>
+    computeWht({ sectionCode, financeActYear: 2026, sectionSpecific });
+
+  // 1. §149(3) Board / directorship fee — flat 20% on the gross fee.
+  const dir = wht('149', { monthlySalary: 1_000_000, frequency: 'MONTHLY', taxpayerType: 'INDIVIDUAL', subType: 'DIRECTOR_FEE' });
+  assert.strictEqual(dir.rate, 20, '§149(3) director fee = 20% flat');
+  assert.strictEqual(dir.isProgressiveSlab, false, '§149(3) director fee bypasses salary slabs');
+  assert.deepStrictEqual(dir.whtAmountPerPeriod, new Decimal(200_000), '§149(3) 1,000,000 × 20% = 200,000');
+  // Regression: normal salary still runs progressive slabs.
+  assert.ok(wht('149', { monthlySalary: 200_000, frequency: 'MONTHLY', taxpayerType: 'INDIVIDUAL' }).isProgressiveSlab,
+    '§149 normal salary still progressive');
+  console.log('  ✓ §149(3) directorship fee flat 20%; normal salary slabs intact.');
+
+  // 2. §150 Mutual-fund split: Stock 15/30, Money/Debt 25/50, Company Debt 29/58.
+  assert.strictEqual(wht('150', { dividendAmount: 1_000_000, subType: 'MUTUAL_FUND_STOCK', atlStatus: 'ATL' }).rate, 15, '§150 Stock Fund ATL = 15%');
+  assert.strictEqual(wht('150', { dividendAmount: 1_000_000, subType: 'MUTUAL_FUND_STOCK', atlStatus: 'NON_ATL' }).rate, 30, '§150 Stock Fund Non-ATL = 30%');
+  assert.strictEqual(wht('150', { dividendAmount: 1_000_000, subType: 'MUTUAL_FUND_MONEY_DEBT', atlStatus: 'ATL' }).rate, 25, '§150 Money/Debt Fund ATL = 25%');
+  assert.strictEqual(wht('150', { dividendAmount: 1_000_000, subType: 'MUTUAL_FUND_MONEY_DEBT', atlStatus: 'NON_ATL' }).rate, 50, '§150 Money/Debt Fund Non-ATL = 50%');
+  assert.strictEqual(wht('150', { dividendAmount: 1_000_000, subType: 'MUTUAL_FUND_COMPANY_DEBT', atlStatus: 'ATL' }).rate, 29, '§150 Company Debt Fund ATL = 29%');
+  assert.strictEqual(wht('150', { dividendAmount: 1_000_000, subType: 'MUTUAL_FUND_COMPANY_DEBT', atlStatus: 'NON_ATL' }).rate, 58, '§150 Company Debt Fund Non-ATL = 58%');
+  console.log('  ✓ §150 mutual-fund split: Stock 15/30, Money-Debt 25/50, Company-Debt 29/58.');
+
+  // 3. §151 NSS flat 20/40 for all taxpayer types.
+  for (const tt of ['INDIVIDUAL', 'AOP', 'COMPANY']) {
+    assert.strictEqual(wht('151', { profitAmount: 500_000, subType: 'NSSF', atlStatus: 'ATL', taxpayerType: tt }).rate, 20, `§151 NSS ATL ${tt} = 20%`);
+    assert.strictEqual(wht('151', { profitAmount: 500_000, subType: 'NSSF', atlStatus: 'NON_ATL', taxpayerType: tt }).rate, 40, `§151 NSS Non-ATL ${tt} = 40%`);
+  }
+  console.log('  ✓ §151 NSS flat 20/40 (Individual, AOP, Company).');
+
+  // 4. §152(1C) offshore digital services 15%.
+  assert.strictEqual(wht('152', { paymentAmount: 1_000_000, subType: 'OFFSHORE_DIGITAL_SERVICES', atlStatus: 'ATL', taxpayerType: 'COMPANY' }).rate, 15,
+    '§152(1C) offshore digital = 15%');
+  console.log('  ✓ §152(1C) offshore digital services 15%.');
+
+  // 5. §153c sportsperson — Moore TY2027 15/30 (controlled 1 July release decision).
+  assert.strictEqual(wht('153c', { paymentAmount: 1_000_000, subType: 'SPORTSPERSON', atlStatus: 'ATL', taxpayerType: 'INDIVIDUAL' }).rate, 15, '§153c sportsperson ATL = 15% [Moore TY2027]');
+  assert.strictEqual(wht('153c', { paymentAmount: 1_000_000, subType: 'SPORTSPERSON', atlStatus: 'NON_ATL', taxpayerType: 'INDIVIDUAL' }).rate, 30, '§153c sportsperson Non-ATL = 30% [Moore TY2027]');
+  console.log('  ✓ §153c sportsperson 15/30 (Moore TY2027, 1 July release — subject to FBR reconciliation).');
+
+  // 6. §149(1A) pension surcharge audit (FY2026-27).
+  //    5% on the excess >Rs 10M applies when pensioner age < 70; the s.4AB 9%
+  //    surcharge is repealed by Finance Act 2026 (so NOT applied) — the 5% base
+  //    charge itself is present and must be, per the Moore chart + Div I.
+  const pensionUnder70 = wht('149', { monthlySalary: 15_000_000 / 12, frequency: 'MONTHLY', taxpayerType: 'INDIVIDUAL', subType: 'PENSION', pensionerAge: 60 });
+  assert.strictEqual(pensionUnder70.rate, 5, '§149(1A) pension >10M age<70 → 5% on excess');
+  // 5% × (15,000,000 − 10,000,000) = 250,000; no 9%/10% surcharge for FY2026-27.
+  assert.deepStrictEqual(pensionUnder70.whtAmountAnnual, new Decimal(250_000), '§149(1A) 15M age60 → 250,000 (5% × 5M, surcharge repealed)');
+  assert.ok(!pensionUnder70.rateLabel.includes('Surcharge'), '§149(1A) FY2026-27 shows no surcharge (s.4AB repealed)');
+  // ≤10M → nil; age≥70 → nil.
+  assert.strictEqual(wht('149', { monthlySalary: 8_000_000 / 12, frequency: 'MONTHLY', taxpayerType: 'INDIVIDUAL', subType: 'PENSION', pensionerAge: 60 }).rate, 0, '§149(1A) pension ≤10M → 0%');
+  assert.deepStrictEqual(wht('149', { monthlySalary: 15_000_000 / 12, frequency: 'MONTHLY', taxpayerType: 'INDIVIDUAL', subType: 'PENSION', pensionerAge: 75 }).whtAmountAnnual, new Decimal(0), '§149(1A) pension >10M age≥70 → 0');
+  console.log('  ✓ §149(1A) pension: 5% on excess >10M (age<70) present; s.4AB surcharge correctly repealed.');
+
+  console.log('✓ All Moore TY2027-aligned change tests passed.');
+}
+
 // Run All
 try {
   testLoader();
@@ -2169,6 +2678,12 @@ try {
   testAuditRemediationFY2026();
   testMaterialRemediationFY2026();
   testExplanationFrequencyDivisor();
+  testBatch1FinanceAct2026();
+  testHotfix001HiddenYearGuard();
+  testBatch2FinanceAct2026();
+  testBatch3ValidationFY2027();
+  testLocalDualYearVisibility();
+  testMooreAlignmentFY2027();
   console.log('\n=========================================');
   console.log('ALL WHT ENGINE TESTS PASSED SUCCESSFULLY!');
   console.log('=========================================');
