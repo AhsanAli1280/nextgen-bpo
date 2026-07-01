@@ -111,6 +111,31 @@ export function buildExplanation(result: {
     return parts.join('\n');
   }
 
+  // §151B — life-insurance / takaful payout: the taxable base is the gross
+  // payout reduced by the aggregate premiums paid, then taxed at the timing-band
+  // rate (final tax). Show the net-of-premiums derivation explicitly.
+  if (result.sectionCode === '151B') {
+    const premiumsRaw = result.inputs.premiumsPaid;
+    const premiums = typeof premiumsRaw === 'number' && premiumsRaw > 0 ? new Decimal(premiumsRaw) : new Decimal(0);
+    const taxableBase = Decimal.max(result.enteredAmount.sub(premiums), new Decimal(0));
+
+    parts.push(`#### 1. Taxable Base (Payout − Premiums)`);
+    parts.push(`- Gross Payout / Benefit: **PKR ${formatAmount(result.enteredAmount)}**`);
+    parts.push(`- Less Aggregate Premiums / Contributions Paid: **PKR ${formatAmount(premiums)}**`);
+    parts.push(`- **Amount Liable to Tax (s.151B(2)): PKR ${formatAmount(taxableBase)}**`);
+    parts.push('');
+    parts.push(`#### 2. Tax Rate Application`);
+    parts.push(`- Resolved Rate: **${result.rateLabel}**`);
+    parts.push(`- Computation: PKR ${formatAmount(taxableBase)} (taxable base) × ${result.rate}% = **PKR ${formatAmount(result.whtAmountPerPeriod)}**`);
+    parts.push(`- Treatment: **Final Tax** on the income arising from the payout (s.151B(4)).`);
+    parts.push('');
+    parts.push(`#### 3. Summary of Deductions`);
+    parts.push(`- **Gross Payout:** PKR ${formatAmount(result.enteredAmount)}`);
+    parts.push(`- **WHT Deduction:** PKR ${formatAmount(result.whtAmountPerPeriod)}`);
+    parts.push(`- **Net Payable Amount:** **PKR ${formatAmount(result.netAmountPerPeriod)}**`);
+    return parts.join('\n');
+  }
+
   // 1. Inputs and Frequency normalisation
   parts.push(`#### 1. Transaction Input`);
   if (result.sectionCode === '149' && result.enteredFrequency && result.annualisedAmount) {

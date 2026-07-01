@@ -48,6 +48,42 @@ export function getDefaultFinanceActYear(
 }
 
 /**
+ * HOTFIX-001 — Hidden tax-year guard.
+ *
+ * Returns the Finance Act year the UI should default to, RESTRICTED to the set
+ * of years that are visible to end users (VISIBLE_TAX_YEARS). Unlike
+ * getDefaultFinanceActYear (which resolves over the full RATE_REGISTRY and can
+ * therefore select a hidden year once the system date crosses that year's
+ * 1-July boundary), this helper guarantees the initial active year is always
+ * one of the visible years — so a not-yet-enabled config can never become the
+ * default, be computed, or be rendered.
+ *
+ * Resolution:
+ *   1. If the date-derived active year is visible, use it.
+ *   2. Otherwise fall back to the latest (maximum) visible year.
+ *   3. Returns null only when there are no visible years (caller must surface
+ *      a "no data available" state).
+ *
+ * Pure and side-effect-free: the visible-year list and date are injected so the
+ * guard is fully unit-testable without the global clock.
+ */
+export function getDefaultVisibleTaxYear(
+  visibleYears: readonly number[],
+  date: Date = new Date()
+): number | null {
+  if (visibleYears.length === 0) return null;
+
+  const activeYear = getActiveFinanceActYear(date);
+
+  // 1. Date-derived active year is itself visible — use it directly.
+  if (visibleYears.includes(activeYear)) return activeYear;
+
+  // 2. Active year is hidden (e.g. a future year not yet enabled) — fall back
+  //    to the latest visible year rather than silently exposing the hidden one.
+  return Math.max(...visibleYears);
+}
+
+/**
  * Resolves the WhtRateConfig for a specific Finance Act year.
  */
 export function getConfigByYear(year: number): WhtRateConfig {

@@ -89,9 +89,11 @@ export function validateSectionConfig(
   const subTypeField = section.transactionFields.find(
     (f) => f.key === 'subType' || f.key === 'dividendType' || f.key === 'instrumentType' || f.key === 'paymentNature'
   );
-  if (section.code === '236C' || section.code === '236K') {
-    // Property-value FMV band is derived from the amount (see engine.ts),
-    // not selected via a form field.
+  if ((section.code === '236C' || section.code === '236K') && section.rules.some((r) => r.subType === 'FMV_LE_50M')) {
+    // FY2025-26 and earlier: property-value FMV band is derived from the
+    // amount (see engine.ts), not selected via a form field. Finance Act 2026
+    // replaced these with single flat rates (no FMV_* rules), so FY2026-27
+    // configs fall through to the default [null] subType enumeration.
     subTypeOptions = ['FMV_LE_50M', 'FMV_50M_TO_100M', 'FMV_GT_100M'];
   } else if (section.code === '151' && section.rules.some((r) => r.subType === 'GOVT_SEC_INDIVIDUAL')) {
     // GOVT_SEC/SUKUK sub-categories are derived from taxpayerType + amount

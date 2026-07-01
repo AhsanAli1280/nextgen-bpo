@@ -12,9 +12,9 @@ export const WHT_FAQ_ITEMS: ReadonlyArray<{ question: string; answer: string }> 
       'Withholding tax (WHT) is tax deducted at source under the Income Tax Ordinance 2001. The payer — an employer, company, bank, or property registrar — deducts a prescribed percentage before paying you and deposits it with the FBR. Depending on the section, the deduction is either adjustable against your final tax liability or treated as final tax.',
   },
   {
-    question: 'What are the withholding tax rates for 2025-26?',
+    question: 'What are the withholding tax rates for 2026-27?',
     answer:
-      'Rates vary by section and transaction type under the Finance Act 2025. Salary (Section 149) is taxed through progressive slabs from 0% to 35% of annual taxable income. Other sections — dividends, profit on debt, rent, goods, services, contracts, and property transactions — each carry their own rates, which also differ by taxpayer type and Active Taxpayer List status. This calculator applies the current FBR rate card for FY 2025-26 automatically.',
+      'Rates vary by section and transaction type under the Finance Act 2026. Salary (Section 149) is taxed through progressive slabs from 0% to 35% of annual taxable income. Other sections — dividends, profit on debt, rent, goods, services, contracts, and property transactions — each carry their own rates, which also differ by taxpayer type and Active Taxpayer List status. This calculator applies the current rate tables for FY 2026-27 automatically, and Tax Year 2025-26 remains selectable for prior-year calculations.',
   },
   {
     question: 'What is the difference between ATL and Non-ATL rates?',
@@ -34,7 +34,7 @@ export const WHT_FAQ_ITEMS: ReadonlyArray<{ question: string; answer: string }> 
   {
     question: 'Which sections does this calculator cover?',
     answer:
-      'The calculator covers 16 withholding categories of the Income Tax Ordinance 2001: imports (148), salary (149), dividends (150), profit on debt (151), payments to non-residents (152), goods, services and contracts (153), digital transactions (153(2A)), exports (154), IT exports (154A), rent (155), prizes (156), commission (233), and property transactions (236C and 236K) — all at Finance Act 2025 rates for FY 2025-26.',
+      'The calculator covers withholding categories of the Income Tax Ordinance 2001: imports (148), salary (149), dividends (150), profit on debt (151), life insurance and takaful payouts (151B), payments to non-residents (152), goods, services and contracts (153), digital transactions (153(2A)), exports (154), IT exports (154A), social media platform revenue (154B), rent (155), prizes (156), commission (233), and property transactions (236C and 236K) — at Finance Act 2026 rates for FY 2026-27.',
   },
 ];
 
@@ -48,7 +48,7 @@ export function CalculatorFaq() {
           </h2>
           <p className="text-brand-gray mb-8">
             Common questions about withholding tax under the Income Tax Ordinance 2001 and the
-            Finance Act 2025 (tax year 2025-26).
+            Finance Act 2026 (tax year 2026-27).
           </p>
           <div className="space-y-3">
             {WHT_FAQ_ITEMS.map((item) => (
