@@ -32,6 +32,11 @@ export function CalculatorPromo() {
               </h2>
               <p className="text-white/75 leading-relaxed">
                 Calculate withholding taxes instantly using Finance Act 2026 rates for Tax Year 2026-27 with full calculation transparency.
+                {' '}
+                <Link href="/tax-year-2027-pakistan" className="text-brand-green font-medium hover:underline">
+                  See what changed for Tax Year 2027
+                </Link>
+                .
               </p>
             </div>
           </div>

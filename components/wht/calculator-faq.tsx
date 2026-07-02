@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Container } from '@/components/ui/container';
 
 /* Single source for the visible FAQ and the FAQPage JSON-LD on /wht-calculator.
@@ -48,7 +49,12 @@ export function CalculatorFaq() {
           </h2>
           <p className="text-brand-gray mb-8">
             Common questions about withholding tax under the Income Tax Ordinance 2001 and the
-            Finance Act 2026 (tax year 2026-27).
+            Finance Act 2026 (tax year 2026-27). For the full rate summary and what changed this
+            year, see our{' '}
+            <Link href="/tax-year-2027-pakistan" className="text-brand-green font-medium hover:underline">
+              Tax Year 2027 Pakistan guide and WHT Rate Card TY 2027
+            </Link>
+            .
           </p>
           <div className="space-y-3">
             {WHT_FAQ_ITEMS.map((item) => (
