@@ -20,6 +20,7 @@ export const NAV_ITEMS: NavItem[] = [
       { label: 'Corporate Advisory', href: '/corporate-advisory-services' },
     ],
   },
+  { label: 'Pricing', href: '/pricing' },
   { label: 'Industries', href: '/#industries' },
   { label: 'Process', href: '/#process' },
   { label: 'Our Team', href: '/#our-team' },
@@ -47,6 +48,7 @@ export const FOOTER_LINKS = {
     { label: 'Contact', href: '/#contact' },
   ],
   resources: [
+    { label: 'Services & Pricing', href: '/pricing' },
     { label: 'WHT Calculator', href: '/wht-calculator' },
     { label: 'Confidentiality', href: '/#trust' },
     { label: 'Review Process', href: '/#process' },

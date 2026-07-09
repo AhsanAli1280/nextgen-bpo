@@ -3,6 +3,7 @@ import { faqSchema } from '@/lib/structured-data';
 import { Hero } from '@/components/sections/hero';
 import { TrustedBy } from '@/components/sections/trusted-by';
 import { ServicesGrid } from '@/components/sections/services-grid';
+import { PricingPreview } from '@/components/sections/pricing-preview';
 import { WhyChooseUs } from '@/components/sections/why-choose-us';
 import { ProcessWorkflow } from '@/components/sections/process-workflow';
 import { IndustryExpertise } from '@/components/sections/industry-expertise';
@@ -28,6 +29,7 @@ export default function HomePage() {
       <CalculatorPromo />
       <TrustedBy />
       <ServicesGrid />
+      <PricingPreview />
       <WhyChooseUs />
       <ProcessWorkflow />
       <IndustryExpertise />
