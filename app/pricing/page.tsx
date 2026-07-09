@@ -13,7 +13,7 @@ const BASE_URL = 'https://next-genbpo.com';
 const PAGE_URL = `${BASE_URL}/pricing`;
 
 export const metadata: Metadata = {
-  title: 'Services & Pricing — Tax, Registration, USA Formation & Accounting',
+  title: 'Services & Pricing: Income Tax Return Filing, NTN, GST & Registration',
   description:
     'Transparent professional fees for NTN registration, income tax filing, GST and sales tax, SECP company registration, trademarks, USA LLC formation, and accounting support. Fixed fees, starting fees, and custom quotes.',
   alternates: { canonical: PAGE_URL },
@@ -115,6 +115,10 @@ const FAQS = [
     a: 'For bookkeeping, audit support, and CPA firm support engagements, pricing is tailored to the scope and requirements of the engagement. Share your requirements through the inquiry form and you will receive a clear quotation after the scope and required deliverables have been reviewed.',
   },
   {
+    q: 'How much does it cost to become a filer in Pakistan?',
+    a: 'Becoming a filer generally involves two professional services: NTN registration with the Federal Board of Revenue (FBR), and annual income tax return filing for the relevant tax year. Both are listed with fixed professional fees in the Income Tax Return section of this page. The applicable fee depends on whether you are a salaried individual, a business individual, or a company. Listed amounts are professional fees only, and any government charges are separate. Appearing on the Active Taxpayer List (ATL) follows FBR’s processing procedures after the return is filed.',
+  },
+  {
     q: 'How do I get started?',
     a: 'Click the button on any service card and submit the short inquiry form — the service is pre-selected for you. Our team responds within one business day to confirm requirements, timeline, and fee before any work begins.',
   },
@@ -177,7 +181,10 @@ export default function PricingPage() {
       </section>
 
       {/* Catalogue */}
-      <section className="py-12 lg:py-16 bg-white" aria-labelledby="pricing-catalogue-heading">
+      {/* id="income-tax-return" is a stable, server-rendered anchor targeted by
+          the taxation-services page and the ItemList schema context; the Income
+          Tax Return category renders first in the default (unfiltered) grid. */}
+      <section id="income-tax-return" className="scroll-mt-24 py-12 lg:py-16 bg-white" aria-labelledby="pricing-catalogue-heading">
         <Container>
           <h2 id="pricing-catalogue-heading" className="sr-only">
             Service catalogue and fees
@@ -253,7 +260,7 @@ export default function PricingPage() {
           <p className="mt-10 text-sm text-brand-gray">
             Looking for full service detail? Explore{' '}
             <Link href="/pakistan-taxation-services" className="font-medium text-brand-blue hover:text-brand-dark transition-colors">
-              Pakistan taxation
+              income tax return filing and Pakistan taxation services
             </Link>
             ,{' '}
             <Link href="/bookkeeping-services" className="font-medium text-brand-blue hover:text-brand-dark transition-colors">

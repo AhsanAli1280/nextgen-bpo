@@ -631,7 +631,7 @@ export default function TaxYear2027PakistanPage() {
                 masters and payment workflows should be updated for the Tax Year 2027 rates before
                 the first statutory filing of the year. Our{' '}
                 <Link href="/pakistan-taxation-services" className="text-brand-green font-medium hover:underline">
-                  Pakistan taxation services
+                  Pakistan taxation and income tax return filing services
                 </Link>{' '}
                 and{' '}
                 <Link href="/payroll-processing-services" className="text-brand-green font-medium hover:underline">
@@ -711,7 +711,7 @@ export default function TaxYear2027PakistanPage() {
               </li>
               <li>
                 <Link href="/pakistan-taxation-services" className="text-brand-green font-medium hover:underline inline-flex items-center gap-1">
-                  Pakistan Taxation Services
+                  Income Tax Return Filing &amp; Pakistan Taxation Services
                   <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
                 </Link>
               </li>

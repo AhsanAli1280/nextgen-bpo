@@ -110,7 +110,7 @@ export function PricingCard({ service, onInquire }: PricingCardProps) {
   const remainingRequirements = service.requirements.slice(service.keyRequirementCount);
 
   return (
-    <article className="flex flex-col rounded-2xl border border-brand-border/60 bg-white p-6 shadow-sm motion-safe:transition-shadow motion-safe:duration-200 hover:shadow-brand">
+    <article id={service.id} className="scroll-mt-28 flex flex-col rounded-2xl border border-brand-border/60 bg-white p-6 shadow-sm motion-safe:transition-shadow motion-safe:duration-200 hover:shadow-brand">
       <span className="self-start inline-block px-2.5 py-1 rounded-full bg-brand-green/10 text-brand-green text-[11px] font-semibold tracking-wide uppercase mb-4">
         {service.category}
       </span>

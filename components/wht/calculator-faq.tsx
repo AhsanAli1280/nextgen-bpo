@@ -79,7 +79,7 @@ export function CalculatorFaq() {
             This information is general guidance only and does not constitute tax advice. For
             engagement-specific advice, see our{' '}
             <a href="/pakistan-taxation-services" className="text-brand-green font-medium hover:underline">
-              Pakistan taxation services
+              income tax return filing and Pakistan taxation services
             </a>{' '}
             or consult a qualified tax professional.
           </p>

@@ -66,7 +66,7 @@ export const SERVICES: Service[] = [
     id: 'pakistan-taxation',
     title: 'Pakistan Taxation Services',
     description:
-      'Pakistan income tax, sales tax, withholding tax, compliance calendars, filing support, and advisory for businesses and professionals.',
+      'Income tax return filing, NTN registration, sales tax, withholding tax, and Active Taxpayer List (ATL) support for individuals, businesses, and companies.',
     icon: 'Landmark',
     gradient: 'green',
     href: '/pakistan-taxation',

@@ -103,7 +103,7 @@ export const PRICING_CATALOG: PricedService[] = [
     id: 'ntn-registration-salaried',
     title: 'NTN Registration – Salaried',
     category: 'Income Tax Return',
-    description: 'FBR National Tax Number registration for salaried individuals, prepared and filed on your behalf.',
+    description: 'FBR National Tax Number registration for salaried individuals, prepared and filed on your behalf. This is the first step towards becoming a filer.',
     pricing: { kind: 'fixed', amount: 1500, currency: 'PKR' },
     completionTime: '1–2 working days',
     requirements: [
@@ -121,7 +121,7 @@ export const PRICING_CATALOG: PricedService[] = [
     id: 'ntn-registration-business',
     title: 'NTN Registration – Business',
     category: 'Income Tax Return',
-    description: 'FBR National Tax Number registration for sole proprietors and business owners.',
+    description: 'FBR National Tax Number registration for sole proprietors and business owners. This is the first step towards becoming a filer.',
     pricing: { kind: 'fixed', amount: 2500, currency: 'PKR' },
     completionTime: '1–2 working days',
     requirements: [
