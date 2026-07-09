@@ -5,7 +5,7 @@
 - **Release name:** Central Pricing Experience (focused release)
 - **Document date:** July 9, 2026
 - **Project:** NextGen BPO — https://next-genbpo.com/
-- **Release status:** Implemented — Pending Deployment
+- **Release status:** Deployed — Production Verified
 - **Prepared by:** Claude
 - **Repository confirmation:** `C:\Users\ahsan\nextgen-bpo` (git branch `master`, working tree clean at planning time). This is the repository deployed as the live NextGen BPO website (Next.js App Router, Vercel).
 
@@ -267,4 +267,40 @@ Re-searched repo for `Corporate Secretary in a Box`, `Corporate Secretary`, `act
 Web3Forms delivery not live-fired from the modal (avoids a production test lead); Google Rich Results Test pending deployed URL; no WhatsApp channel (no verified number); footer legal links (`/#contact`) pre-existing gap, out of scope.
 
 ### Result
-`No material implementation changes were required during final production-readiness review` other than the single fee-label correction recorded above. Status remains **Implemented — Pending Deployment**.
+`No material implementation changes were required during final production-readiness review` other than the single fee-label correction recorded above.
+
+---
+
+## 30. Deployment & Production Verification
+
+- **Commit hash:** `037eea2b3fc96b3b0f7fe3066e5d5ec5e5b6b02d` (`037eea2`)
+- **Branch / remote:** `master` → `origin` (`https://github.com/AhsanAli1280/nextgen-bpo.git`), pushed `b3e2eed..037eea2`
+- **Deployment date:** July 9, 2026
+- **Production URL:** https://next-genbpo.com/pricing
+- **Vercel result:** Auto-deploy from `master` succeeded. Production `/pricing` returned 404 immediately after push, then **HTTP 200 within ~45 seconds** (build + deploy complete). No Vercel CLI in this environment; deployment confirmed by polling the live URL, not by the git push alone.
+
+### Production verification (live, via HTTP)
+- Homepage 200; homepage pricing preview present ("Transparent professional fees"), 6 category tiles, `View All Services & Pricing` CTA; 9 `/pricing` links across nav, footer, tiles, and CTA.
+- `/pricing` 200 and stable on refresh; 20 `<article>` cards in server-rendered HTML; exactly one `<h1>`; no `noindex`.
+- Title: "Services & Pricing — Tax, Registration, USA Formation & Accounting | NextGen BPO Solutions"; meta description present; canonical → `https://next-genbpo.com/pricing`.
+- Fee labels: 8 "Fixed Professional Fee", 3 "Professional Fee" (LLP/AOP, Trademark, Patent), 6 "Professional Fees Starting From", GST both tiers (Rs. 18,000 / Rs. 15,000), 3 "Custom Quote".
+- Sitemap: `/pricing` appears exactly once; robots.txt allows crawling.
+- Structured data (live parse): 6/6 JSON-LD blocks valid; ItemList = 20 services; 3 custom services (Bookkeeping, Audit, CPA) carry no offer/price; 0 zero/fabricated prices; currencies PKR + USD; GST → two `UnitPriceSpecification`; starting services → `PriceSpecification.minPrice`; BreadcrumbList (Home → Services & Pricing); FAQPage = 5 questions matching visible FAQs.
+
+### Checks validated on the identical local build of this commit (preview harness is bound to the dev server and cannot drive the cross-origin production URL)
+Filter counts 20 / 7 / 3 / 2 / 2 / 3 / 3; `aria-pressed` state; live result count; mobile horizontal-scroll filters with no page overflow; requirements `<details>` expansion; CTA labels per pricing type; inquiry modal opens with service pre-selected; company/firm field only for Accounting & Professional Support; Escape/focus-trap/focus-return/scroll-lock; no console errors or hydration warnings. Production ships the same client bundle from commit `037eea2`.
+
+### Google Rich Results Test
+**Not executed from this environment** — the Rich Results Test is an interactive/authenticated Google tool and cannot be run via script here. JSON-LD was instead validated structurally against the live page (all blocks parse; types/properties conform to schema.org). **Recommended manual follow-up:** run https://search.google.com/test/rich-results on `https://next-genbpo.com/pricing`.
+
+### Inquiry-form production test
+**Not performed.** Submitting the live form posts to the production Web3Forms endpoint and delivers a real email to `info@next-genbpo.com`, which would create a genuine (spurious) business lead even with placeholder data. Deferred to avoid an inappropriate lead; the modal reuses the exact endpoint/payload pattern of the existing, working homepage contact form. **Recommended manual follow-up:** one controlled submission by the business owner.
+
+### Remaining known limitations
+- Rich Results Test and one live inquiry-form submission pending manual follow-up (above).
+- No WhatsApp channel (no verified business number).
+- Footer legal links (`Privacy Policy`, `Terms of Engagement`) still point to `/#contact` — pre-existing, out of scope.
+
+## 31. Final Release Status (post-deployment)
+
+Deployed — Production Verified
