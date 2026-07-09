@@ -11,6 +11,7 @@
     "test": "ts-node --project tsconfig.test.json lib/wht-engine/tests/wht.test.ts"
   },
   "dependencies": {
+    "@next/third-parties": "^15.5.20",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "clsx": "^2.1.1",
