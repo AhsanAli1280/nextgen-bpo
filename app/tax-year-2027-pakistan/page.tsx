@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import Link from 'next/link';
 import { Container } from '@/components/ui/container';
 import { Button } from '@/components/ui/button';
+import { TaxYear2027Popup } from '@/components/wht/tax-year-2027-popup';
 import { ArrowRight, Calculator, ChevronRight, ShieldCheck } from 'lucide-react';
 
 /* ============================================================================
@@ -330,6 +331,9 @@ export default function TaxYear2027PakistanPage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(calculatorSchema) }} />
+
+      {/* Conversion popup — client-only, appears ~6s after load, once per session */}
+      <TaxYear2027Popup />
 
       {/* Breadcrumb — mirrors BreadcrumbList schema */}
       <nav aria-label="Breadcrumb" className="bg-white border-b border-brand-border/60">
