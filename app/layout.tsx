@@ -19,7 +19,6 @@ export const metadata: Metadata = {
   title: { default: SEO.title, template: `%s | ${BRAND.name}` },
   description: SEO.description,
   keywords: [...SEO.keywords],
-  icons: { icon: '/logo.svg', shortcut: '/logo.svg', apple: '/logo.svg' },
   authors: [{ name: BRAND.name }],
   creator: BRAND.name,
   publisher: BRAND.name,
